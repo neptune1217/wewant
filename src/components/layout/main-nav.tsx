@@ -5,10 +5,11 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/", label: "홈" },
-  { href: "/committees", label: "위원회·위원" },
-  { href: "/stats", label: "통계" },
-  { href: "/me", label: "사용자정보" },
+  { href: "/", label: "홈", match: [] },
+  { href: "/committees", label: "위원회·위원", match: ["/committees"] },
+  { href: "/stats", label: "통계", match: ["/stats"] },
+  // 관리 화면(/admin)도 사용자정보 탭 안에 있다
+  { href: "/me", label: "사용자정보", match: ["/me", "/admin"] },
 ] as const;
 
 /** 로그인 후 상단의 4개 탭 */
@@ -17,7 +18,10 @@ export function MainNav() {
   return (
     <nav aria-label="주 메뉴" className="flex gap-1 overflow-x-auto">
       {TABS.map((tab) => {
-        const active = tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
+        const active =
+          tab.href === "/"
+            ? pathname === "/"
+            : tab.match.some((p) => pathname === p || pathname.startsWith(`${p}/`));
         return (
           <Link
             key={tab.href}

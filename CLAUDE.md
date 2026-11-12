@@ -41,7 +41,8 @@
 - [x] 0단계 준비 (문서, CLAUDE.md)
 - [x] 1단계 프로젝트 뼈대와 DB
 - [x] 2단계 로그인과 권한 골격
-- [ ] 3단계 기준정보 관리 (총괄 전용)
+- [x] 3단계 기준정보 관리 (총괄 전용)
+- [ ] 4단계 위원회 관리
 
 ## 구현 메모 (1단계에서 확정)
 - Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
@@ -59,3 +60,13 @@
 - Better Auth HTTP 주소는 로그인·로그아웃·세션·비밀번호 변경만 열려 있다(`disabledPaths`). 사용자 정보 변경은 앱의 서버 액션이 권한 확인 후 Prisma로 처리
 - Next.js `cacheComponents`는 끔(모든 화면이 로그인 사용자별)
 - shadcn/ui 4.23.0 (radix, `components.json`). Vitest는 4 (Better Auth와의 의존성 충돌 때문)
+
+## 공통 화면 패턴 (3단계에서 확정 — 4단계 이후 그대로 재사용)
+- 화면 구성: `page.tsx`(서버: 권한 확인 → DB 조회 → 표 데이터로 변환) + `xxx-table.tsx`(클라이언트: 열 정의·대화상자) + `actions.ts`(서버 동작)
+- 목록: `src/components/data-table/data-table.tsx` (TanStack Table **v9** — `useTable`, `tableFeatures`. v8 문법 `useReactTable`을 쓰지 않는다). 선택 필터 열에는 `filterFn: "equalsString"`
+- 등록·수정: `FormDialog` + `FormField`/`SelectField`/`FieldError`. 확인: `ConfirmDialog`. 상태: `StatusBadge`
+- 서버 동작은 `ActionResult`(`src/lib/action-result.ts`)를 돌려준다. 입력 검사는 Zod 스키마(`src/lib/validation/`)를 화면과 서버가 공유
+- 관리자 서버 동작은 본문이 `return adminAction(...)`으로 시작해야 한다(`src/lib/admin-actions.test.ts`가 검사). 관리자 화면은 `requireAdminPage()`
+- 변경은 트랜잭션 안에서 `writeAudit()`로 이력을 남긴다. 비활성화는 action `삭제`, 다시 활성화는 `수정`으로 기록
+- 스키마를 바꾼 뒤에는 개발 서버를 다시 시작한다(실행 중인 서버가 예전 Prisma 연결을 붙잡고 있음)
+- 데이터가 있는 테이블에 필수 칸·고유 제약을 추가하면 `migrate dev`가 확인 질문으로 멈춘다 → `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`로 SQL을 만들어 마이그레이션 폴더에 넣고 `migrate dev`로 적용

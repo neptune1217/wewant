@@ -216,10 +216,11 @@ model TB_Comm {
 
 /// 위원회 내 직위 (위원장, 부위원장, 위원 …)
 model TB_Ap_Position {
-  appos_id   String   @id @default(dbgenerated("('s'::text || lpad((nextval('tb_ap_position_seq'::regclass))::text, 5, '0'::text))"))
-  appos_name String
-  created_at DateTime @default(now()) @db.Timestamptz(3)
-  updated_at DateTime @updatedAt @db.Timestamptz(3)
+  appos_id    String   @id @default(dbgenerated("('s'::text || lpad((nextval('tb_ap_position_seq'::regclass))::text, 5, '0'::text))"))
+  appos_name  String   @unique
+  appos_activ Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime @updatedAt @db.Timestamptz(3)
 
   appoints TB_Appoint[]
 }

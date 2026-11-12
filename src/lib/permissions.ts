@@ -84,7 +84,14 @@ export async function requireUser(
   return user;
 }
 
-/** 총괄(r01)만 통과. 부서 계정이면 PermissionError. */
+/** 화면(page)용: 총괄(r01)만 통과. 부서 계정이면 접근 거부 화면으로 이동. */
+export async function requireAdminPage(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (!isAdmin(user)) redirect("/forbidden");
+  return user;
+}
+
+/** 서버 동작용: 총괄(r01)만 통과. 부서 계정이면 PermissionError. */
 export async function requireAdmin(): Promise<CurrentUser> {
   const user = await requireUser();
   if (!isAdmin(user)) throw new PermissionError("총괄담당자만 할 수 있습니다.");
