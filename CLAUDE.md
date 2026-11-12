@@ -39,4 +39,13 @@
 
 ## 현재 진행 상태
 - [x] 0단계 준비 (문서, CLAUDE.md)
-- [ ] 1단계 프로젝트 뼈대와 DB
+- [x] 1단계 프로젝트 뼈대와 DB
+- [ ] 2단계 로그인과 권한 골격
+
+## 구현 메모 (1단계에서 확정)
+- Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
+- 앱에서 DB는 `src/lib/db.ts`의 `prisma`만 쓴다(서버 전용)
+- 선택값은 코드에서 영문(`GUKSO`), DB에는 한글(`국소`). 한글 표기 변환은 `src/lib/enum-labels.ts`
+- 고유코드 자동 채번은 DB 시퀀스(`tb_dept_seq` 등) — 첫 마이그레이션 SQL에 직접 추가함
+- Prisma 7은 시드를 자동 실행하지 않는다 → `npm run db:seed`
+- 시청 내부망 운영 전제라 외부 웹폰트(Google Fonts)를 쓰지 않는다

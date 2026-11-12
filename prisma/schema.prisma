@@ -1,0 +1,270 @@
+// wewant 스키마 — docs/데이터모델.md를 그대로 옮긴 것. 바꿀 때는 그 문서도 함께 고친다.
+//
+// - 모델·필드 이름은 DB 테이블·컬럼 이름과 같다 (TB_Comm, comm_id …).
+// - 고유코드(d00001 등)는 DB 시퀀스로 자동 채번한다. 시퀀스는 첫 마이그레이션 SQL에 있다.
+// - 선택값은 enum으로 두고, DB에는 @map의 한글 값이 저장된다.
+// - 외래키는 모두 onDelete: Restrict. 삭제 대신 *_activ = false로 비활성화한다.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── 선택값 ─────────────────────────
+
+enum DeptType {
+  GUKSO @map("국소")
+  BUSEO @map("부서")
+}
+
+enum InstType {
+  LAW       @map("법령")
+  ORDINANCE @map("조례")
+  ETC       @map("기타")
+}
+
+enum OpType {
+  STANDING     @map("상설")
+  NON_STANDING @map("비상설")
+}
+
+enum Gender {
+  MALE   @map("남")
+  FEMALE @map("여")
+}
+
+enum AppointType {
+  EX_OFFICIO @map("당연직")
+  APPOINTED  @map("위촉직")
+}
+
+enum AppointKind {
+  NEW        @map("신규")
+  REAPPOINT  @map("연임")
+  BY_ELECT   @map("보궐")
+  POS_CHANGE @map("직위변경")
+}
+
+enum EndReason {
+  EXPIRED    @map("임기만료")
+  RESIGNED   @map("사임")
+  DISMISSED  @map("해촉")
+  POS_CHANGE @map("직위변경")
+  ETC        @map("기타")
+}
+
+enum ReqStatus {
+  PENDING  @map("대기")
+  APPROVED @map("승인")
+  REJECTED @map("거절")
+}
+
+enum AuditAction {
+  CREATE @map("생성")
+  UPDATE @map("수정")
+  DELETE @map("삭제")
+  EXPORT @map("내보내기")
+  LOGIN  @map("로그인")
+}
+
+// ───────────────────────── 조직·사용자 ─────────────────────────
+
+/// 부서 (국소–부서 계층)
+model TB_Dept {
+  dept_id       String   @id @default(dbgenerated("('d'::text || lpad((nextval('tb_dept_seq'::regclass))::text, 5, '0'::text))"))
+  parentdept_id String?
+  dept_name     String
+  dept_type     DeptType
+  dept_activ    Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz(3)
+  updated_at    DateTime @updatedAt @db.Timestamptz(3)
+
+  parent   TB_Dept?  @relation("DeptTree", fields: [parentdept_id], references: [dept_id], onDelete: Restrict)
+  children TB_Dept[] @relation("DeptTree")
+  users    TB_User[]
+  comms    TB_Comm[]
+
+  @@index([parentdept_id])
+}
+
+/// 권한 (r01 총괄, r02 부서)
+model TB_Auth {
+  auth_id    String   @id
+  auth_name  String
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+
+  users TB_User[]
+}
+
+/// 사용자. 비밀번호 해시와 Better Auth 연결은 2단계에서 추가한다.
+model TB_User {
+  user_id        String    @id @default(dbgenerated("('u'::text || lpad((nextval('tb_user_seq'::regclass))::text, 5, '0'::text))"))
+  login_id       String    @unique
+  user_name      String
+  dept_id        String
+  phone          String    @db.VarChar(4)
+  auth_id        String
+  user_activ     Boolean   @default(true)
+  must_change_pw Boolean   @default(true)
+  last_login_at  DateTime? @db.Timestamptz(3)
+  created_at     DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at     DateTime  @updatedAt @db.Timestamptz(3)
+
+  dept TB_Dept @relation(fields: [dept_id], references: [dept_id], onDelete: Restrict)
+  auth TB_Auth @relation(fields: [auth_id], references: [auth_id], onDelete: Restrict)
+
+  managed_comms TB_Comm[]      @relation("CommManager")
+  access_reqs   TB_AccessReq[] @relation("ReqUser")
+  decided_reqs  TB_AccessReq[] @relation("ReqDecider")
+  audit_logs    TB_AuditLog[]
+
+  @@index([dept_id])
+  @@index([auth_id])
+}
+
+// ───────────────────────── 위원회 ─────────────────────────
+
+/// 위원회. 편집 권한은 mng_user_id 한 사람(과 총괄)에게만 있다.
+model TB_Comm {
+  comm_id       String   @id @default(dbgenerated("('c'::text || lpad((nextval('tb_comm_seq'::regclass))::text, 5, '0'::text))"))
+  comm_name     String
+  dept_id       String
+  mng_user_id   String
+  inst_type     InstType
+  legal_1       String?
+  legal_2       String?
+  op_type       OpType
+  member_cap    Int
+  term_yr       Int
+  reappoint_num Int
+  comm_activ    Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz(3)
+  updated_at    DateTime @updatedAt @db.Timestamptz(3)
+
+  dept        TB_Dept        @relation(fields: [dept_id], references: [dept_id], onDelete: Restrict)
+  mng_user    TB_User        @relation("CommManager", fields: [mng_user_id], references: [user_id], onDelete: Restrict)
+  appoints    TB_Appoint[]
+  access_reqs TB_AccessReq[]
+
+  @@index([dept_id])
+  @@index([mng_user_id])
+}
+
+/// 위원회 내 직위 (위원장, 부위원장, 위원 …)
+model TB_Ap_Position {
+  appos_id   String   @id @default(dbgenerated("('s'::text || lpad((nextval('tb_ap_position_seq'::regclass))::text, 5, '0'::text))"))
+  appos_name String
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+
+  appoints TB_Appoint[]
+}
+
+// ───────────────────────── 인물·소속직위·위촉 ─────────────────────────
+
+/// 인물. 전 위원회가 공유하는 한 사람당 한 행.
+model TB_Person {
+  person_id     String   @id @default(dbgenerated("('p'::text || lpad((nextval('tb_person_seq'::regclass))::text, 5, '0'::text))"))
+  person_name   String
+  person_gender Gender
+  birth_date    DateTime @db.Date
+  is_public     Boolean
+  person_activ  Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz(3)
+  updated_at    DateTime @updatedAt @db.Timestamptz(3)
+
+  positions TB_Pos[]
+
+  @@index([person_name, birth_date])
+}
+
+/// 소속직위 (인물별). 위촉 건이 참조 중인 행은 수정하지 않는다.
+model TB_Pos {
+  pos_id     String   @id @default(dbgenerated("('a'::text || lpad((nextval('tb_pos_seq'::regclass))::text, 5, '0'::text))"))
+  person_id  String
+  org_name   String
+  pos_name   String
+  pos_activ  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+
+  person   TB_Person    @relation(fields: [person_id], references: [person_id], onDelete: Restrict)
+  appoints TB_Appoint[]
+
+  @@unique([person_id, org_name, pos_name])
+}
+
+/// 위촉. 인물은 pos_id → TB_Pos.person_id로 얻는다.
+model TB_Appoint {
+  appoint_id    String      @id @default(dbgenerated("('t'::text || lpad((nextval('tb_appoint_seq'::regclass))::text, 5, '0'::text))"))
+  comm_id       String
+  pos_id        String
+  appos_id      String
+  appoint_type  AppointType
+  appoint_kind  AppointKind
+  appoint_start DateTime    @db.Date
+  expire_due    DateTime?   @db.Date
+  appoint_end   DateTime?   @db.Date
+  end_reason    EndReason?
+  appoint_activ Boolean     @default(true)
+  created_at    DateTime    @default(now()) @db.Timestamptz(3)
+  updated_at    DateTime    @updatedAt @db.Timestamptz(3)
+
+  comm  TB_Comm        @relation(fields: [comm_id], references: [comm_id], onDelete: Restrict)
+  pos   TB_Pos         @relation(fields: [pos_id], references: [pos_id], onDelete: Restrict)
+  appos TB_Ap_Position @relation(fields: [appos_id], references: [appos_id], onDelete: Restrict)
+
+  @@index([comm_id])
+  @@index([pos_id])
+  @@index([appos_id])
+}
+
+// ───────────────────────── 열람 요청·변경 이력 ─────────────────────────
+
+/// 열람 요청. 승인 시 view_until(= 승인일 + view_days − 1)까지 읽기 전용 열람.
+model TB_AccessReq {
+  req_id      String    @id @default(dbgenerated("('q'::text || lpad((nextval('tb_accessreq_seq'::regclass))::text, 5, '0'::text))"))
+  comm_id     String
+  req_user_id String
+  req_reason  String
+  req_status  ReqStatus @default(PENDING)
+  req_at      DateTime  @default(now()) @db.Timestamptz(3)
+  decided_by  String?
+  decided_at  DateTime? @db.Timestamptz(3)
+  view_days   Int?
+  view_until  DateTime? @db.Date
+  created_at  DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime  @updatedAt @db.Timestamptz(3)
+
+  comm     TB_Comm  @relation(fields: [comm_id], references: [comm_id], onDelete: Restrict)
+  req_user TB_User  @relation("ReqUser", fields: [req_user_id], references: [user_id], onDelete: Restrict)
+  decider  TB_User? @relation("ReqDecider", fields: [decided_by], references: [user_id], onDelete: Restrict)
+
+  @@index([comm_id])
+  @@index([req_user_id])
+  @@index([decided_by])
+}
+
+/// 변경 이력. 생성·수정·삭제(비활성화)·내보내기·로그인을 남긴다.
+model TB_AuditLog {
+  log_id       Int         @id @default(autoincrement())
+  user_id      String
+  action       AuditAction
+  target_table String
+  target_id    String
+  detail       Json
+  logged_at    DateTime    @default(now()) @db.Timestamptz(3)
+  created_at   DateTime    @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime    @updatedAt @db.Timestamptz(3)
+
+  user TB_User @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
+
+  @@index([user_id])
+  @@index([target_table, target_id])
+  @@index([logged_at])
+}

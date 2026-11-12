@@ -17,3 +17,12 @@ test-results/
 .DS_Store
 Thumbs.db
 ~$*.xlsx
+
+# Next.js·TypeScript
+*.tsbuildinfo
+next-env.d.ts
+*.pem
+npm-debug.log*
+
+# Prisma 생성 코드 (prisma generate로 다시 만듦)
+/src/generated/
