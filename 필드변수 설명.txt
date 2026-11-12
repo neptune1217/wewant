@@ -1,0 +1,46 @@
+dept_id : 부서고유코드 / 알파벳d와 다섯자리 번호 / 기본키
+parentdept_id : 소속 국소 / 소속된 상위 부서의 dept_id
+dept_name : 부서명 / 텍스트
+dept_type : 부서유형 / 국소, 부서 이 둘 중 하나
+dept_active : 부서 활성화 여부 / y, n
+
+user_id : 사용자고유코드 / 알파벳 u와 다섯자리 번호 / 기본키
+user_name : 사용자명 / 텍스트
+phone : 유선번호 / 4자리 번호
+user_active : 사용자 활성화 여부 / y, n
+auth_id : 권한고유코드 / 알파벳 r과 두자리 번호 / 고유키
+auth_name : 권한명 / 총괄, 부서 이 둘 중 하나
+
+comm_id : 위원회고유코드 / 알파벳 c와 다섯자리 번호 / 기본키
+comm_name : 위원회명 / 텍스트
+inst_type : 설치유형 / 법령, 조례, 기타 이 셋 중 하나
+legal_1 : 근거법령명 / 텍스트
+legal_2 : 근거조례규칙명 / 텍스트
+op_type : 운영형태 / 상설, 비상설 이 둘 중 하나
+member_cap : 위원회 정원 / 숫자(정수)
+term_yr : 위원 임기년수 / 숫자(년수: 1년, 2년, 3년...)
+reappoint_num : 연임 가능횟수 / 숫자(정수)
+comm_activ : 위원회 활성화 여부 / y, n 
+mng_user_id : 위원회 담당자 / 해당 위원회 담당자의 user_id
+
+person_id : 위원고유코드 / 알파벳 p와 다섯자리 번호 / 기본키
+person_name : 위원 성명 / 텍스트
+person_gender : 위원 성별 / 남, 여 이 둘중 하나
+is_public : 현직 춘천시 공무원 여부 / y, n
+person_activ : 위원 활성화 여부 / y, n
+birth_date : 위원 생년월일 / 연월일(날짜데이터)
+
+pos_id : 직위고유코드 / 알파벳 a와 다섯자리 번호 / 기본키
+org_name : 소속기관명 / 텍스트
+pos_name : 직위명 / 텍스트
+pos_activ : 직위 활성화 여부 / y, n
+
+appoint_id : 위촉고유코드 / 알파벳 t와 다섯자리 번호 / 기본키
+appoint_type : 위촉유형 / 당연직, 위촉직 이 둘중 하나
+appoint_start : 실제 위촉일 / 연월일(날짜데이터)
+appoint_end : 실제 해촉일 / 연월일(날짜데이터)
+appoint_activ : 위해촉 상황 / y, n
+
+appos_id : 위원회직위 고유코드 / 알파벳 s와 다섯자리 번호 / 기본키
+appos_name : 위원회직위명 / 텍스트
+

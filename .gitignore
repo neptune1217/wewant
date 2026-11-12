@@ -1,0 +1,19 @@
+# 비밀정보 (CLAUDE.md 규칙 11)
+.env
+.env*.local
+
+# 의존성·빌드 결과
+node_modules/
+.next/
+out/
+build/
+coverage/
+
+# 테스트 결과
+playwright-report/
+test-results/
+
+# OS·편집기
+.DS_Store
+Thumbs.db
+~$*.xlsx
