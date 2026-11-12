@@ -16,7 +16,10 @@
 npm install
 ```
 
-2. 접속 정보 파일 만들기 — `.env.example`을 복사해 `.env`를 만들고, 그 안의 `change_me` 두 곳을 같은 비밀번호로 바꿉니다.
+2. 접속 정보 파일 만들기 — `.env.example`을 복사해 `.env`를 만들고 그 안의 `change_me` 값들을 바꿉니다.
+   - `POSTGRES_PASSWORD`와 `DATABASE_URL` 안의 비밀번호는 같은 값으로
+   - `BETTER_AUTH_SECRET`은 32자 이상 아무 무작위 문자열
+   - `SEED_DEFAULT_PASSWORD`는 시드 계정(u00001~u00008)의 첫 비밀번호 (8자 이상)
 
 ```bash
 cp .env.example .env
@@ -51,6 +54,8 @@ npm run db:studio
 ```
 
 7. 웹 화면 실행 → 브라우저에서 http://localhost:3000
+   - 아이디 `u00001`(총괄) 또는 `u00002`~`u00008`(부서), 비밀번호는 `.env`의 `SEED_DEFAULT_PASSWORD`
+   - 처음 로그인하면 비밀번호 변경 화면이 나옵니다
 
 ```bash
 npm run dev

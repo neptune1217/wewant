@@ -26,3 +26,6 @@ npm-debug.log*
 
 # Prisma 생성 코드 (prisma generate로 다시 만듦)
 /src/generated/
+
+# Claude Code 로컬 설정
+/.claude/

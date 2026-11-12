@@ -6,6 +6,8 @@
  * - y/n → true/false, 빈 칸 → null
  * - TB_Pos.person_id의 오타 u00001 → p00001
  * - TB_User.login_id는 엑셀에 없어 user_id와 같은 값으로 넣는다 (최초 로그인 시 비밀번호 변경 강제)
+ * - TB_User.email은 Better Auth 필수값이라 내부용 주소(u00001@wewant.local)를 넣는다
+ * - 로그인 계정(TB_Account)은 .env의 SEED_DEFAULT_PASSWORD 해시로 만든다. 이미 있으면 건드리지 않는다
  * - TB_Appoint
  *   - appoint_kind: 엑셀에 없어 모두 "신규"
  *   - expire_due: 당연직은 null, 위촉직은 "위촉일 + 위원회 임기년수 − 1일"로 다시 계산 (엑셀 종료일은 쓰지 않음)
@@ -13,7 +15,9 @@
  *   - end_reason: 해촉일이 있으면 정보가 없으므로 "기타"
  */
 import "dotenv/config";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
+import { hashPassword } from "better-auth/crypto";
 import ExcelJS from "exceljs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
@@ -103,6 +107,14 @@ async function main() {
   await wb.xlsx.readFile(EXCEL_PATH);
   const today = todayKST();
 
+  // 시드 계정의 첫 비밀번호 (가상 계정용 테스트 값, .env에만 둔다). 첫 로그인 때 변경을 강제한다.
+  const seedPassword = process.env.SEED_DEFAULT_PASSWORD;
+  if (!seedPassword || seedPassword.length < 8) {
+    throw new Error(".env에 SEED_DEFAULT_PASSWORD(8자 이상)를 설정하세요");
+  }
+  const passwordHash = await hashPassword(seedPassword);
+  let createdAccounts = 0;
+
   const depts = readSheet(wb, "TB_Dept").map((r) => ({
     dept_id: req(r.dept_id, "dept_id"),
     parentdept_id: text(r.parentdept_id),
@@ -121,8 +133,9 @@ async function main() {
   const users = readSheet(wb, "TB_User").map((r) => {
     const user_id = req(r.user_id, "user_id");
     return {
-      user_id,
+      id: user_id, // DB 컬럼명은 user_id (schema.prisma 참고)
       login_id: user_id,
+      email: `${user_id}@wewant.local`, // Better Auth 필수값. 화면에 쓰지 않는 내부용 주소
       user_name: req(r.user_name, "user_name"),
       dept_id: req(r.dept_id, "dept_id"),
       phone: req(r.phone, "phone").padStart(4, "0"),
@@ -199,7 +212,27 @@ async function main() {
   await prisma.$transaction(async (tx) => {
     for (const d of depts) await tx.tB_Dept.upsert({ where: { dept_id: d.dept_id }, create: d, update: d });
     for (const a of auths) await tx.tB_Auth.upsert({ where: { auth_id: a.auth_id }, create: a, update: a });
-    for (const u of users) await tx.tB_User.upsert({ where: { user_id: u.user_id }, create: u, update: u });
+    for (const u of users) {
+      // 다시 실행할 때 must_change_pw를 되돌리지 않는다 (이미 비밀번호를 바꾼 사용자 보호)
+      // (Prisma는 undefined인 필드를 바꾸지 않는다)
+      await tx.tB_User.upsert({ where: { id: u.id }, create: u, update: { ...u, must_change_pw: undefined } });
+      // 로그인 계정(비밀번호 해시)은 없을 때만 만든다. 이미 바꾼 비밀번호를 덮어쓰지 않는다.
+      const hasCredential = await tx.tB_Account.findFirst({
+        where: { user_id: u.id, provider_id: "credential" },
+      });
+      if (!hasCredential) {
+        await tx.tB_Account.create({
+          data: {
+            id: randomUUID(),
+            account_id: u.id,
+            provider_id: "credential",
+            user_id: u.id,
+            password: passwordHash,
+          },
+        });
+        createdAccounts++;
+      }
+    }
     for (const c of comms) await tx.tB_Comm.upsert({ where: { comm_id: c.comm_id }, create: c, update: c });
     for (const s of apPositions)
       await tx.tB_Ap_Position.upsert({ where: { appos_id: s.appos_id }, create: s, update: s });
@@ -238,6 +271,7 @@ async function main() {
     TB_Pos: positions.length,
     TB_Appoint: appoints.length,
   });
+  console.log(`새로 만든 로그인 계정: ${createdAccounts}개 (이미 있던 계정의 비밀번호는 그대로 둠)`);
   await prisma.$disconnect();
 }
 

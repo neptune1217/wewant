@@ -40,7 +40,8 @@
 ## 현재 진행 상태
 - [x] 0단계 준비 (문서, CLAUDE.md)
 - [x] 1단계 프로젝트 뼈대와 DB
-- [ ] 2단계 로그인과 권한 골격
+- [x] 2단계 로그인과 권한 골격
+- [ ] 3단계 기준정보 관리 (총괄 전용)
 
 ## 구현 메모 (1단계에서 확정)
 - Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
@@ -48,4 +49,13 @@
 - 선택값은 코드에서 영문(`GUKSO`), DB에는 한글(`국소`). 한글 표기 변환은 `src/lib/enum-labels.ts`
 - 고유코드 자동 채번은 DB 시퀀스(`tb_dept_seq` 등) — 첫 마이그레이션 SQL에 직접 추가함
 - Prisma 7은 시드를 자동 실행하지 않는다 → `npm run db:seed`
-- 시청 내부망 운영 전제라 외부 웹폰트(Google Fonts)를 쓰지 않는다
+- 시청 내부망 운영 전제라 외부 웹폰트(Google Fonts)를 쓰지 않는다. shadcn 설치·추가 시 `next/font/google`이 다시 들어오면 제거한다
+
+## 구현 메모 (2단계에서 확정)
+- 인증: Better Auth 1.7.22 (`src/lib/auth.ts`). TB_User가 사용자 테이블을 겸하며, Prisma 필드명만 `id`(DB 컬럼은 `user_id`)
+- 화면·서버 동작은 `src/lib/permissions.ts`의 `requireUser()` / `requireAdmin()` / `assertPermission()`을 쓴다. 판정 규칙은 `src/lib/rules/permission-rules.ts`(순수 함수, 테스트 있음)
+- `src/proxy.ts`는 로그인 쿠키 유무만 보는 1차 확인. 진짜 확인은 `requireUser()`
+- 로그인 화면 서버 액션만 권한 확인 예외(로그인 전이므로)
+- Better Auth HTTP 주소는 로그인·로그아웃·세션·비밀번호 변경만 열려 있다(`disabledPaths`). 사용자 정보 변경은 앱의 서버 액션이 권한 확인 후 Prisma로 처리
+- Next.js `cacheComponents`는 끔(모든 화면이 로그인 사용자별)
+- shadcn/ui 4.23.0 (radix, `components.json`). Vitest는 4 (Better Auth와의 의존성 충돌 때문)

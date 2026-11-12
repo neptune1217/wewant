@@ -101,9 +101,10 @@ model TB_Auth {
   users TB_User[]
 }
 
-/// 사용자. 비밀번호 해시와 Better Auth 연결은 2단계에서 추가한다.
+/// 사용자. Better Auth의 사용자 테이블을 겸한다 (src/lib/auth.ts에서 필드 연결).
+/// 주의: Better Auth는 코드상 PK 이름이 `id`여야 하므로 Prisma 필드명만 `id`이고 DB 컬럼은 `user_id`다.
 model TB_User {
-  user_id        String    @id @default(dbgenerated("('u'::text || lpad((nextval('tb_user_seq'::regclass))::text, 5, '0'::text))"))
+  id             String    @id @default(dbgenerated("('u'::text || lpad((nextval('tb_user_seq'::regclass))::text, 5, '0'::text))")) @map("user_id")
   login_id       String    @unique
   user_name      String
   dept_id        String
@@ -112,6 +113,10 @@ model TB_User {
   user_activ     Boolean   @default(true)
   must_change_pw Boolean   @default(true)
   last_login_at  DateTime? @db.Timestamptz(3)
+  /// Better Auth 필수값. 이메일은 쓰지 않으므로 내부용 주소(login_id@wewant.local)를 넣고 화면에 표시하지 않는다.
+  email          String    @unique
+  email_verified Boolean   @default(false)
+  image          String?
   created_at     DateTime  @default(now()) @db.Timestamptz(3)
   updated_at     DateTime  @updatedAt @db.Timestamptz(3)
 
@@ -122,9 +127,63 @@ model TB_User {
   access_reqs   TB_AccessReq[] @relation("ReqUser")
   decided_reqs  TB_AccessReq[] @relation("ReqDecider")
   audit_logs    TB_AuditLog[]
+  sessions      TB_Session[]
+  accounts      TB_Account[]
 
   @@index([dept_id])
   @@index([auth_id])
+}
+
+// ───────────────────────── 로그인 (Better Auth 관리) ─────────────────────────
+// 아래 3개 테이블은 Better Auth가 읽고 쓴다. 앱 코드에서 직접 고치지 않는다.
+
+/// 로그인 세션. 로그아웃·만료 시 Better Auth가 행을 지운다.
+model TB_Session {
+  id         String   @id
+  token      String   @unique
+  user_id    String
+  expires_at DateTime @db.Timestamptz(3)
+  ip_address String?
+  user_agent String?
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+
+  user TB_User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+}
+
+/// 로그인 수단. 아이디·비밀번호 로그인은 provider_id = "credential", password에 해시만 저장한다.
+model TB_Account {
+  id                       String    @id
+  account_id               String
+  provider_id              String
+  user_id                  String
+  access_token             String?
+  refresh_token            String?
+  id_token                 String?
+  access_token_expires_at  DateTime? @db.Timestamptz(3)
+  refresh_token_expires_at DateTime? @db.Timestamptz(3)
+  scope                    String?
+  password                 String?
+  created_at               DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at               DateTime  @updatedAt @db.Timestamptz(3)
+
+  user TB_User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+}
+
+/// 일회용 인증값 (Better Auth 내부용)
+model TB_Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expires_at DateTime @db.Timestamptz(3)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([identifier])
 }
 
 // ───────────────────────── 위원회 ─────────────────────────
@@ -147,7 +206,7 @@ model TB_Comm {
   updated_at    DateTime @updatedAt @db.Timestamptz(3)
 
   dept        TB_Dept        @relation(fields: [dept_id], references: [dept_id], onDelete: Restrict)
-  mng_user    TB_User        @relation("CommManager", fields: [mng_user_id], references: [user_id], onDelete: Restrict)
+  mng_user    TB_User        @relation("CommManager", fields: [mng_user_id], references: [id], onDelete: Restrict)
   appoints    TB_Appoint[]
   access_reqs TB_AccessReq[]
 
@@ -242,8 +301,8 @@ model TB_AccessReq {
   updated_at  DateTime  @updatedAt @db.Timestamptz(3)
 
   comm     TB_Comm  @relation(fields: [comm_id], references: [comm_id], onDelete: Restrict)
-  req_user TB_User  @relation("ReqUser", fields: [req_user_id], references: [user_id], onDelete: Restrict)
-  decider  TB_User? @relation("ReqDecider", fields: [decided_by], references: [user_id], onDelete: Restrict)
+  req_user TB_User  @relation("ReqUser", fields: [req_user_id], references: [id], onDelete: Restrict)
+  decider  TB_User? @relation("ReqDecider", fields: [decided_by], references: [id], onDelete: Restrict)
 
   @@index([comm_id])
   @@index([req_user_id])
@@ -262,7 +321,7 @@ model TB_AuditLog {
   created_at   DateTime    @default(now()) @db.Timestamptz(3)
   updated_at   DateTime    @updatedAt @db.Timestamptz(3)
 
-  user TB_User @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
+  user TB_User @relation(fields: [user_id], references: [id], onDelete: Restrict)
 
   @@index([user_id])
   @@index([target_table, target_id])
