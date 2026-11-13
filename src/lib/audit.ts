@@ -46,14 +46,18 @@ export async function writeAudit(
     after?: Row | null;
     /** 추가 설명 (예: 비밀번호 초기화) */
     note?: string;
+    /** 내보내기 조건·행 수 등 그대로 남길 내용 (내보내기 전용) */
+    detail?: Row;
   },
 ) {
   const before = clean(entry.before);
   const after = clean(entry.after);
   const detail =
-    entry.action === AuditAction.CREATE
-      ? { after }
-      : { changes: diff(before, after), ...(entry.note ? { note: entry.note } : {}) };
+    entry.action === AuditAction.EXPORT
+      ? { ...entry.detail, ...(entry.note ? { note: entry.note } : {}) }
+      : entry.action === AuditAction.CREATE
+        ? { after }
+        : { changes: diff(before, after), ...(entry.note ? { note: entry.note } : {}) };
 
   await tx.tB_AuditLog.create({
     data: {

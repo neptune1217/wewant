@@ -105,9 +105,14 @@ export default async function CommitteesPage() {
               : "본인이 담당자인 위원회만 수정할 수 있습니다. 다른 위원회는 기본 정보만 보입니다."}
           </p>
         </div>
-        <Link href="/committees/duplicates" className={buttonVariants({ variant: "outline" })}>
-          중복위촉 조회
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/members" className={buttonVariants({ variant: "outline" })}>
+            위원 조회
+          </Link>
+          <Link href="/committees/duplicates" className={buttonVariants({ variant: "outline" })}>
+            중복위촉 조회
+          </Link>
+        </div>
       </div>
       {isAdmin(user) && pendingCount > 0 && (
         <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">

@@ -46,6 +46,7 @@
 - [x] 5단계 인물·소속직위·위촉 (핵심)
 - [x] 6단계 중복위촉 조회와 경고
 - [x] 7단계 열람 요청·승인
+- [x] 8단계 필터와 엑셀 내보내기
 
 ## 구현 메모 (1단계에서 확정)
 - Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
@@ -102,3 +103,9 @@
 - `getCommAccess()`가 본인 요청 상태(`myAccess`)를 함께 돌려준다. 열람 중(편집 불가)이면 상세 화면에 읽기 전용 안내
 - 위원회 목록의 위원회명은 항상 상세 링크(권한이 없으면 상세 화면에서 열람 요청)
 - 홈의 열람 요청 처리함은 `src/app/(main)/access-inbox.tsx`. 9단계 대시보드는 이 화면에 덧붙인다
+
+## 구현 메모 (8단계에서 확정)
+- 위원 조회 `/members` + 엑셀 `/members/export`(Route Handler). 데이터는 `src/lib/members.ts`의 `loadMemberRows(user)` — 열람 가능 위원회만(`viewableComms`)
+- 필터는 주소 조건 → `parseMemberFilter` → `filterMembers`(`src/lib/rules/member-filter.ts`, 테스트 있음). 화면과 엑셀이 같은 함수를 써서 건수가 같다. 화면 표에는 따로 검색칸을 두지 않는다(`DataTable searchable={false}`)
+- Route Handler는 첫 문장이 `const user = await requireUser(`여야 한다(`server-actions.test.ts`가 검사, `api/auth` 제외)
+- 내보내기 이력은 `writeAudit({ action: EXPORT, detail: {...} })` — 조건과 행 수를 그대로 남긴다

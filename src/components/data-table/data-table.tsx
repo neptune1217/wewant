@@ -49,6 +49,7 @@ export function DataTable<TData extends RowData>({
   toolbar,
   emptyMessage = "표시할 항목이 없습니다.",
   hiddenColumns = [],
+  searchable = true,
 }: {
   columns: DataColumn<TData>[];
   data: TData[];
@@ -59,6 +60,8 @@ export function DataTable<TData extends RowData>({
   emptyMessage?: string;
   /** 필터에만 쓰고 화면에는 보이지 않을 열 */
   hiddenColumns?: string[];
+  /** 표 안의 검색칸 (서버에서 거른 결과를 그대로 보여 줄 때는 false) */
+  searchable?: boolean;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -97,13 +100,15 @@ export function DataTable<TData extends RowData>({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Input
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          placeholder={searchPlaceholder}
-          aria-label="검색"
-          className="w-full sm:w-64"
-        />
+        {searchable && (
+          <Input
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            placeholder={searchPlaceholder}
+            aria-label="검색"
+            className="w-full sm:w-64"
+          />
+        )}
         {filters.map((f) => (
           <Select
             key={f.columnId}

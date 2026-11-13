@@ -7,6 +7,7 @@
  *   · return userAction(    — 로그인 사용자. 이 경우 본문에서 대상별 권한 판정 함수를 반드시 부른다 (4단계 완료 기준)
  *   · await requireUser( / getCurrentUser( — 본인 정보만 다루는 동작
  * - 관리 화면(page.tsx)은 requireAdminPage()로 권한을 확인한다.
+ * - Route Handler(route.ts)의 내보낸 GET/POST 등은 첫 문장이 `const user = await requireUser(`다 (8단계, 엑셀 내보내기).
  * 예외: 로그인 화면(로그인 전이므로 확인할 사용자가 없다)
  */
 import { readdirSync, readFileSync } from "node:fs";
@@ -99,5 +100,25 @@ describe("관리 화면은 모두 requireAdminPage()로 권한을 확인한다",
     it(path.relative(process.cwd(), file), () => {
       expect(readFileSync(file, "utf8")).toMatch(/await requireAdminPage\(\)/);
     });
+  }
+});
+
+/** 로그인 처리 자체를 맡는 Better Auth 주소는 검사 대상이 아니다 */
+const ROUTE_EXEMPT = [path.join("src", "app", "api", "auth")];
+
+describe("모든 Route Handler는 권한 관문으로 시작한다", () => {
+  const routeFiles = walk(APP_DIR).filter(
+    (f) => /route\.ts$/.test(f) && !ROUTE_EXEMPT.some((e) => path.relative(process.cwd(), f).startsWith(e)),
+  );
+  it("검사할 Route Handler가 있다", () => {
+    expect(routeFiles.length).toBeGreaterThanOrEqual(1);
+  });
+  for (const file of routeFiles) {
+    const fns = exportedFunctions(readFileSync(file, "utf8"));
+    for (const fn of fns) {
+      it(`${path.relative(process.cwd(), file)} → ${fn.name}()`, () => {
+        expect(fn.body.startsWith("const user = await requireUser(")).toBe(true);
+      });
+    }
   }
 });
