@@ -47,6 +47,7 @@
 - [x] 6단계 중복위촉 조회와 경고
 - [x] 7단계 열람 요청·승인
 - [x] 8단계 필터와 엑셀 내보내기
+- [x] 9단계 홈 대시보드와 만료 알림
 
 ## 구현 메모 (1단계에서 확정)
 - Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
@@ -109,3 +110,8 @@
 - 필터는 주소 조건 → `parseMemberFilter` → `filterMembers`(`src/lib/rules/member-filter.ts`, 테스트 있음). 화면과 엑셀이 같은 함수를 써서 건수가 같다. 화면 표에는 따로 검색칸을 두지 않는다(`DataTable searchable={false}`)
 - Route Handler는 첫 문장이 `const user = await requireUser(`여야 한다(`server-actions.test.ts`가 검사, `api/auth` 제외)
 - 내보내기 이력은 `writeAudit({ action: EXPORT, detail: {...} })` — 조건과 행 수를 그대로 남긴다
+
+## 구현 메모 (9단계에서 확정)
+- 홈 = 임기만료 알림(`expiry-alerts.tsx`) + 열람 요청 처리함(`access-inbox.tsx`) + 위원회 구성 요약(`home-summary.tsx`). 데이터는 `src/lib/dashboard.ts`의 `loadDashboard(user)`
+- 알림 규칙 `expiryAlerts`(0~60일 + 만료일 지남, 7·30일 강조), 비율 `memberRatios`는 `src/lib/rules/dashboard-rules.ts`(테스트 있음)
+- 홈 막대 그림은 CSS로 그린다. Recharts는 10단계 통계에서 설치
