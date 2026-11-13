@@ -42,7 +42,8 @@
 - [x] 1단계 프로젝트 뼈대와 DB
 - [x] 2단계 로그인과 권한 골격
 - [x] 3단계 기준정보 관리 (총괄 전용)
-- [ ] 4단계 위원회 관리
+- [x] 4단계 위원회 관리
+- [ ] 5단계 인물·소속직위·위촉 (핵심)
 
 ## 구현 메모 (1단계에서 확정)
 - Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
@@ -69,4 +70,11 @@
 - 관리자 서버 동작은 본문이 `return adminAction(...)`으로 시작해야 한다(`src/lib/admin-actions.test.ts`가 검사). 관리자 화면은 `requireAdminPage()`
 - 변경은 트랜잭션 안에서 `writeAudit()`로 이력을 남긴다. 비활성화는 action `삭제`, 다시 활성화는 `수정`으로 기록
 - 스키마를 바꾼 뒤에는 개발 서버를 다시 시작한다(실행 중인 서버가 예전 Prisma 연결을 붙잡고 있음)
+- 로그인 사용자용 서버 동작은 `return userAction(...)`으로 시작하고, 본문에서 대상별 판정(`checkCommUpdate`, `assertPermission` 등)을 반드시 부른다. `src/lib/server-actions.test.ts`가 src/app의 모든 서버 동작을 검사한다(예외: 로그인)
+- 권한이 없는 대상의 상세 값은 화면(클라이언트)으로 보내지 않는다. 목록 행에는 기본 정보만, 수정용 값은 편집 권한이 있을 때만 싣는다
+
+## 구현 메모 (4단계에서 확정)
+- 위원회 승인: 부서 계정 등록 → 승인 대기, 총괄 승인 후 집계 포함. **모든 집계(통계·중복위촉·홈 요약)는 `isCountedComm` / `COUNTED_COMM_WHERE`(활성+승인)만 센다**
+- 위원회 권한 판정은 `getCommAccess(commId)`(상세 화면)와 `checkCommCreate`/`checkCommUpdate`(서버 동작)
+- 목록 표 `hiddenColumns`: 필터에만 쓰고 화면에 숨길 열
 - 데이터가 있는 테이블에 필수 칸·고유 제약을 추가하면 `migrate dev`가 확인 질문으로 멈춘다 → `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`로 SQL을 만들어 마이그레이션 폴더에 넣고 `migrate dev`로 적용

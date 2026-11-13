@@ -4,7 +4,7 @@
 import "server-only";
 import type { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
-import { PermissionError, requireAdmin, type CurrentUser } from "@/lib/permissions";
+import { PermissionError, requireAdmin, requireUser, type CurrentUser } from "@/lib/permissions";
 
 export type ActionResult<T = undefined> =
   | { ok: true; message: string; data?: T }
@@ -43,8 +43,26 @@ export function fromZodError(error: z.ZodError): ActionResult<never> {
 export async function adminAction<T>(
   fn: (actor: CurrentUser) => Promise<ActionResult<T>>,
 ): Promise<ActionResult<T>> {
+  return runAction(requireAdmin, fn);
+}
+
+/**
+ * 로그인 사용자용 서버 동작 감싸개 (위원회 등 담당자별 권한이 있는 동작).
+ * 로그인만 확인하므로, 본문에서 반드시 대상별 권한 판정(checkCommUpdate, assertPermission 등)을 해야 한다.
+ * (구조 검사 테스트가 판정 함수 호출 여부를 확인)
+ */
+export async function userAction<T>(
+  fn: (actor: CurrentUser) => Promise<ActionResult<T>>,
+): Promise<ActionResult<T>> {
+  return runAction(() => requireUser(), fn);
+}
+
+async function runAction<T>(
+  authorize: () => Promise<CurrentUser>,
+  fn: (actor: CurrentUser) => Promise<ActionResult<T>>,
+): Promise<ActionResult<T>> {
   try {
-    const actor = await requireAdmin();
+    const actor = await authorize();
     return await fn(actor);
   } catch (e) {
     if (e instanceof PermissionError) return fail(e.message);

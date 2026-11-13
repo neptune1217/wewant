@@ -48,6 +48,7 @@ export function DataTable<TData extends RowData>({
   filters = [],
   toolbar,
   emptyMessage = "표시할 항목이 없습니다.",
+  hiddenColumns = [],
 }: {
   columns: DataColumn<TData>[];
   data: TData[];
@@ -56,6 +57,8 @@ export function DataTable<TData extends RowData>({
   /** 오른쪽 위 버튼 자리 (예: 등록) */
   toolbar?: ReactNode;
   emptyMessage?: string;
+  /** 필터에만 쓰고 화면에는 보이지 않을 열 */
+  hiddenColumns?: string[];
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -69,7 +72,12 @@ export function DataTable<TData extends RowData>({
     features,
     data,
     columns,
-    state: { sorting, globalFilter, columnFilters },
+    state: {
+      sorting,
+      globalFilter,
+      columnFilters,
+      columnVisibility: Object.fromEntries(hiddenColumns.map((id) => [id, false])),
+    },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
@@ -163,7 +171,7 @@ export function DataTable<TData extends RowData>({
             ) : (
               rows.map((row) => (
                 <TableRow key={row.id}>
-                  {row.getAllCells().map((cell) => (
+                  {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       <table.FlexRender cell={cell} />
                     </TableCell>

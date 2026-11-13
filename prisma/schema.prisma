@@ -123,12 +123,13 @@ model TB_User {
   dept TB_Dept @relation(fields: [dept_id], references: [dept_id], onDelete: Restrict)
   auth TB_Auth @relation(fields: [auth_id], references: [auth_id], onDelete: Restrict)
 
-  managed_comms TB_Comm[]      @relation("CommManager")
-  access_reqs   TB_AccessReq[] @relation("ReqUser")
-  decided_reqs  TB_AccessReq[] @relation("ReqDecider")
-  audit_logs    TB_AuditLog[]
-  sessions      TB_Session[]
-  accounts      TB_Account[]
+  managed_comms  TB_Comm[]      @relation("CommManager")
+  approved_comms TB_Comm[]      @relation("CommApprover")
+  access_reqs    TB_AccessReq[] @relation("ReqUser")
+  decided_reqs   TB_AccessReq[] @relation("ReqDecider")
+  audit_logs     TB_AuditLog[]
+  sessions       TB_Session[]
+  accounts       TB_Account[]
 
   @@index([dept_id])
   @@index([auth_id])
@@ -189,8 +190,9 @@ model TB_Verification {
 // ───────────────────────── 위원회 ─────────────────────────
 
 /// 위원회. 편집 권한은 mng_user_id 한 사람(과 총괄)에게만 있다.
+/// 부서 계정이 등록하면 승인 대기(comm_approved = false)이며 총괄이 승인해야 통계 등 집계에 포함된다.
 model TB_Comm {
-  comm_id       String   @id @default(dbgenerated("('c'::text || lpad((nextval('tb_comm_seq'::regclass))::text, 5, '0'::text))"))
+  comm_id       String    @id @default(dbgenerated("('c'::text || lpad((nextval('tb_comm_seq'::regclass))::text, 5, '0'::text))"))
   comm_name     String
   dept_id       String
   mng_user_id   String
@@ -201,17 +203,22 @@ model TB_Comm {
   member_cap    Int
   term_yr       Int
   reappoint_num Int
-  comm_activ    Boolean  @default(true)
-  created_at    DateTime @default(now()) @db.Timestamptz(3)
-  updated_at    DateTime @updatedAt @db.Timestamptz(3)
+  comm_activ    Boolean   @default(true)
+  comm_approved Boolean   @default(false)
+  approved_by   String?
+  approved_at   DateTime? @db.Timestamptz(3)
+  created_at    DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at    DateTime  @updatedAt @db.Timestamptz(3)
 
   dept        TB_Dept        @relation(fields: [dept_id], references: [dept_id], onDelete: Restrict)
   mng_user    TB_User        @relation("CommManager", fields: [mng_user_id], references: [id], onDelete: Restrict)
+  approver    TB_User?       @relation("CommApprover", fields: [approved_by], references: [id], onDelete: Restrict)
   appoints    TB_Appoint[]
   access_reqs TB_AccessReq[]
 
   @@index([dept_id])
   @@index([mng_user_id])
+  @@index([comm_approved])
 }
 
 /// 위원회 내 직위 (위원장, 부위원장, 위원 …)

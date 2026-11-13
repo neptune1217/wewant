@@ -4,6 +4,7 @@
  */
 import {
   columnFilteringFeature,
+  columnVisibilityFeature,
   createFilteredRowModel,
   createSortedRowModel,
   filterFn_equalsString,
@@ -21,6 +22,7 @@ import {
 
 export const features = tableFeatures({
   columnFilteringFeature,
+  columnVisibilityFeature,
   globalFilteringFeature,
   rowSortingFeature,
   filteredRowModel: createFilteredRowModel(),

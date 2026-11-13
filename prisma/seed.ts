@@ -158,6 +158,8 @@ async function main() {
     term_yr: int(r.term_yr, "term_yr"),
     reappoint_num: int(r.reappoint_num, "reappoint_num"),
     comm_activ: yn(r.comm_activ, "comm_activ"),
+    // 예시 위원회는 이미 운영 중인 공식 위원회로 보고 승인 상태로 넣는다 (승인자 정보 없음)
+    comm_approved: true,
   }));
   const termYrOf = new Map(comms.map((c) => [c.comm_id, c.term_yr]));
 
