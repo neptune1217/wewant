@@ -20,11 +20,36 @@ export type AppointLite = {
   active: boolean;
 };
 
-/** 같은 위원회·같은 인물의 연임횟수 */
-export function reappointCount(appoints: AppointLite[], commId: string, personId: string): number {
-  return appoints.filter(
-    (a) => a.commId === commId && a.personId === personId && a.type === "APPOINTED" && a.kind === "REAPPOINT",
-  ).length;
+/**
+ * 같은 위원회·같은 인물의 연임횟수 — 연속된 임기만 센다.
+ *
+ * 위촉일 순으로 보아, 가장 최근의 신규(또는 보궐) 위촉 이후에 이어진 "연임" 건 수다.
+ * 해촉 후 공백을 두고 다시 신규 위촉되면 연속이 끊긴 것이므로 0회부터 다시 센다.
+ * 예) 2026~2027 최초, 2028~2029 연임(1회) 후 해촉, 2032 신규 위촉 → 0회
+ * 직위변경으로 나뉜 건은 같은 임기의 연속이므로 끊지도 세지도 않는다.
+ *
+ * @param asOfAppointId 지정하면 그 위촉 건 시점까지의 연임횟수 (명부의 지난 줄 표시용)
+ */
+export function reappointCount(
+  appoints: AppointLite[],
+  commId: string,
+  personId: string,
+  asOfAppointId?: string,
+): number {
+  const chain = appoints
+    .filter((a) => a.commId === commId && a.personId === personId && a.type === "APPOINTED")
+    .sort((a, b) => a.start.getTime() - b.start.getTime() || a.appointId.localeCompare(b.appointId));
+
+  const until = asOfAppointId ? chain.findIndex((a) => a.appointId === asOfAppointId) : chain.length - 1;
+  if (until < 0) return 0;
+
+  let count = 0;
+  for (let i = until; i >= 0; i--) {
+    const kind = chain[i].kind;
+    if (kind === "REAPPOINT") count++;
+    else if (kind === "NEW" || kind === "BY_ELECT") break; // 연속 임기의 시작
+  }
+  return count;
 }
 
 /**

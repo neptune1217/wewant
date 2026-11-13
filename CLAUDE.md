@@ -81,7 +81,7 @@
 
 ## 구현 메모 (5단계에서 확정)
 - 위촉 흐름별 날짜 처리는 `docs/데이터모델.md` "위촉 업무 흐름" 표가 기준. 계산은 `term.ts`(resolveExpireDue, nextTermDates, positionChangeDates, dDay), 규칙은 `appoint-rules.ts`
-- **연임횟수 = 최초 임기를 뺀, 연임으로 추가된 임기 수**(appoint_kind = 연임인 위촉직 건). 사용자 확인 예시가 테스트에 있다
+- **연임횟수 = 연속된 임기의 연임 수**: 가장 최근 신규(보궐) 위촉 이후의 "연임" 건만 센다. 공백 후 신규 위촉되면 0회로 초기화. 사용자 확인 예시 2가지가 테스트에 있다
 - 경고 후 저장: 서버 동작이 `needsConfirm(warnings)`를 돌려주면 화면이 `confirm_warnings=Y`를 붙여 다시 보낸다(`FormDialog`가 자동 처리, 신규 위촉 대화상자는 직접 처리)
 - 위촉·인물 서버 동작: `src/app/(main)/committees/[commId]/appoint-actions.ts`, `person-actions.ts`. 검색류는 `const user = await requireUser()`로 시작
 - 명부 행에는 편집 권한이 있을 때만 인물·소속직위 편집용 값을 싣는다

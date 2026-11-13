@@ -58,6 +58,40 @@ describe("연임횟수 = 최초 임기를 뺀, 연임으로 추가된 임기 수
   });
 });
 
+describe("연임은 연속된 임기 — 공백 후 신규 위촉되면 0회로 초기화 (사용자 예시)", () => {
+  // 임기 2년: 2026~2027 최초, 2028~2029 연임 1회 후 임기만료 해촉, 공백, 2032-01-01 신규 위촉
+  const first = ap({ appointId: "t1", kind: "NEW", start: d("2026-01-01"), end: d("2027-12-31"), active: false });
+  const re1 = ap({ appointId: "t2", kind: "REAPPOINT", start: d("2028-01-01"), end: d("2029-12-31"), active: false });
+  const again = ap({ appointId: "t3", kind: "NEW", start: d("2032-01-01"), end: null, active: true });
+
+  it("2032년 신규 위촉 후 연임횟수는 0회", () => {
+    expect(reappointCount([first, re1, again], "c1", "p1")).toBe(0);
+  });
+  it("저장 순서가 섞여 있어도 위촉일 순으로 판단", () => {
+    expect(reappointCount([again, re1, first], "c1", "p1")).toBe(0);
+  });
+  it("2032년 임기 뒤 연임하면 다시 1회부터", () => {
+    const re2 = ap({ appointId: "t4", kind: "REAPPOINT", start: d("2034-01-01") });
+    const ended = { ...again, end: d("2033-12-31"), active: false };
+    expect(reappointCount([first, re1, ended, re2], "c1", "p1")).toBe(1);
+  });
+  it("과거 건 기준으로 보면 그 당시의 연임횟수 (명부의 해촉 줄 표시용)", () => {
+    expect(reappointCount([first, re1, again], "c1", "p1", "t2")).toBe(1);
+    expect(reappointCount([first, re1, again], "c1", "p1", "t1")).toBe(0);
+    expect(reappointCount([first, re1, again], "c1", "p1", "t3")).toBe(0);
+  });
+  it("보궐로 새로 시작해도 초기화", () => {
+    const byElect = ap({ appointId: "t5", kind: "BY_ELECT", start: d("2032-01-01") });
+    expect(reappointCount([first, re1, byElect], "c1", "p1")).toBe(0);
+  });
+  it("연속 임기 중 직위변경으로 나뉜 건은 끊지 않는다", () => {
+    const split = ap({ appointId: "t6", kind: "POS_CHANGE", apposId: "s1", start: d("2029-03-01") });
+    const re1Ended = { ...re1, end: d("2029-02-28") };
+    const re2 = ap({ appointId: "t7", kind: "REAPPOINT", apposId: "s1", start: d("2030-01-01") });
+    expect(reappointCount([first, re1Ended, split, re2], "c1", "p1")).toBe(2);
+  });
+});
+
 describe("연임 가능횟수 경고 (차단하지 않음)", () => {
   it("연임 가능횟수 0회 위원회: 첫 연임부터 경고", () => {
     expect(reappointWarning(0, 0)).toMatch(/연임할 수 없는|0회/);

@@ -211,7 +211,7 @@ async function loadRosterRows(commId: string, user: CurrentUser, canEdit: boolea
       active: a.appoint_activ,
       activeValue: a.appoint_activ ? "Y" : "N",
       dday: a.appoint_activ && a.expire_due ? dDay(a.expire_due, today) : null,
-      reappointCount: reappointCount(lites, commId, person.person_id),
+      reappointCount: reappointCount(lites, commId, person.person_id, a.appoint_id),
       person: canEdit
         ? {
             personId: person.person_id,

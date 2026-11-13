@@ -182,10 +182,12 @@ export async function reappoint(_prev: unknown, formData: FormData): Promise<Act
     const next = nextTermDates(before.expire_due, before.comm.term_yr);
     if ("error" in next) return fail(next.error);
 
+    // 지금 연임하려는 건까지의 연속 임기 연임횟수 (공백 후 신규 위촉이면 0회부터)
     const countSoFar = reappointCount(
       await personAppointsInComm(before.comm_id, before.pos.person_id),
       before.comm_id,
       before.pos.person_id,
+      before.appoint_id,
     );
     const warnings = [reappointWarning(countSoFar, before.comm.reappoint_num)].filter((w): w is string => !!w);
     if (warnings.length && !parsed.data.confirm_warnings) return needsConfirm(warnings);
