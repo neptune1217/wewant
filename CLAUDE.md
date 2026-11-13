@@ -43,7 +43,8 @@
 - [x] 2단계 로그인과 권한 골격
 - [x] 3단계 기준정보 관리 (총괄 전용)
 - [x] 4단계 위원회 관리
-- [ ] 5단계 인물·소속직위·위촉 (핵심)
+- [x] 5단계 인물·소속직위·위촉 (핵심)
+- [ ] 6단계 중복위촉 조회와 경고
 
 ## 구현 메모 (1단계에서 확정)
 - Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
@@ -77,4 +78,11 @@
 - 위원회 승인: 부서 계정 등록 → 승인 대기, 총괄 승인 후 집계 포함. **모든 집계(통계·중복위촉·홈 요약)는 `isCountedComm` / `COUNTED_COMM_WHERE`(활성+승인)만 센다**
 - 위원회 권한 판정은 `getCommAccess(commId)`(상세 화면)와 `checkCommCreate`/`checkCommUpdate`(서버 동작)
 - 목록 표 `hiddenColumns`: 필터에만 쓰고 화면에 숨길 열
+
+## 구현 메모 (5단계에서 확정)
+- 위촉 흐름별 날짜 처리는 `docs/데이터모델.md` "위촉 업무 흐름" 표가 기준. 계산은 `term.ts`(resolveExpireDue, nextTermDates, positionChangeDates, dDay), 규칙은 `appoint-rules.ts`
+- **연임횟수 = 최초 임기를 뺀, 연임으로 추가된 임기 수**(appoint_kind = 연임인 위촉직 건). 사용자 확인 예시가 테스트에 있다
+- 경고 후 저장: 서버 동작이 `needsConfirm(warnings)`를 돌려주면 화면이 `confirm_warnings=Y`를 붙여 다시 보낸다(`FormDialog`가 자동 처리, 신규 위촉 대화상자는 직접 처리)
+- 위촉·인물 서버 동작: `src/app/(main)/committees/[commId]/appoint-actions.ts`, `person-actions.ts`. 검색류는 `const user = await requireUser()`로 시작
+- 명부 행에는 편집 권한이 있을 때만 인물·소속직위 편집용 값을 싣는다
 - 데이터가 있는 테이블에 필수 칸·고유 제약을 추가하면 `migrate dev`가 확인 질문으로 멈춘다 → `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`로 SQL을 만들어 마이그레이션 폴더에 넣고 `migrate dev`로 적용

@@ -40,3 +40,78 @@ export function calcExpireDue(appointStart: Date, termYr: number): Date {
   // Date.UTC는 없는 날짜(평년 2/29)를 다음 날(3/1)로 넘긴다. 거기서 하루를 뺀다.
   return new Date(Date.UTC(y, m, d) - 24 * 60 * 60 * 1000);
 }
+
+// ───────────── 5단계: 위촉 흐름별 날짜 계산 ─────────────
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** 날짜에 일수를 더한다 (음수면 뺀다) */
+export function addDays(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * DAY_MS);
+}
+
+/** D-day = 만료 예정일 − 오늘 (일). 당일 0, 지나면 음수 */
+export function dDay(expireDue: Date, today: Date): number {
+  return Math.round((expireDue.getTime() - today.getTime()) / DAY_MS);
+}
+
+export type AppointTypeCode = "EX_OFFICIO" | "APPOINTED";
+
+/**
+ * 만료 예정일 결정
+ * - 당연직: 없음(null)
+ * - 직접 입력값(보궐 등)이 있으면 그 값. 위촉일보다 이르면 오류
+ * - 없으면 기본값 = 위촉일 + 임기년수 − 1일
+ */
+export function resolveExpireDue(input: {
+  appointType: AppointTypeCode;
+  start: Date;
+  termYr: number;
+  manual?: Date | null;
+}): { expireDue: Date | null } | { error: string } {
+  if (input.appointType === "EX_OFFICIO") return { expireDue: null };
+  if (input.manual) {
+    if (input.manual.getTime() < input.start.getTime()) {
+      return { error: "만료 예정일은 위촉일과 같거나 이후여야 합니다." };
+    }
+    return { expireDue: input.manual };
+  }
+  return { expireDue: calcExpireDue(input.start, input.termYr) };
+}
+
+/**
+ * 연임: 다음 임기 날짜. 이전 만료 예정일 다음 날 시작, 만료 예정일은 새로 계산.
+ * 예) 2년 임기, 2027-12-31 만료 → 2028-01-01 ~ 2029-12-31
+ */
+export function nextTermDates(
+  prevExpireDue: Date | null,
+  termYr: number,
+): { start: Date; expireDue: Date } | { error: string } {
+  if (!prevExpireDue) return { error: "만료 예정일이 없는 위촉(당연직)은 연임할 수 없습니다." };
+  const start = addDays(prevExpireDue, 1);
+  return { start, expireDue: calcExpireDue(start, termYr) };
+}
+
+/**
+ * 임기 중 위원회 내 직위 변경 (위원 → 위원장 등)
+ * 이전 건은 변경일 전날 종료, 새 건은 변경일 시작, 만료 예정일은 남은 임기를 승계한다.
+ */
+export function positionChangeDates(input: {
+  start: Date;
+  expireDue: Date | null;
+  changeDate: Date;
+}): { prevEnd: Date; newStart: Date; newExpireDue: Date | null } | { error: string } {
+  const { start, expireDue, changeDate } = input;
+  if (changeDate.getTime() <= start.getTime()) {
+    return { error: "직위 변경일은 현재 위촉일 다음 날 이후여야 합니다." };
+  }
+  if (expireDue && changeDate.getTime() > expireDue.getTime()) {
+    return { error: "직위 변경일이 만료 예정일보다 늦습니다. 임기가 끝났다면 연임으로 처리하세요." };
+  }
+  return { prevEnd: addDays(changeDate, -1), newStart: changeDate, newExpireDue: expireDue };
+}
+
+/** 앞 날짜가 뒤 날짜와 같거나 이른가 */
+export function checkDateOrder(earlier: Date, later: Date): boolean {
+  return earlier.getTime() <= later.getTime();
+}

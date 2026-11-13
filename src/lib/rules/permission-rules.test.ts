@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   AUTH_ADMIN,
   AUTH_DEPT,
+  canAddPosition,
+  canCreatePerson,
   canEditComm,
   canEditPerson,
   canEditPos,
@@ -156,5 +158,17 @@ describe("엑셀 내보내기 — 열람 권한이 있는 위원회만", () => {
     expect(canExportComm(deptA, commA, [], today)).toBe(true);
     expect(canExportComm(deptB, commA, [], today)).toBe(false);
     expect(canExportComm(admin, commB, [], today)).toBe(true);
+  });
+});
+
+describe("인물 등록·소속직위 추가 (5단계) — 활성 사용자 누구나", () => {
+  it("총괄·부서 모두 가능", () => {
+    expect(canCreatePerson(admin)).toBe(true);
+    expect(canCreatePerson(deptA)).toBe(true);
+    expect(canAddPosition(deptB)).toBe(true);
+  });
+  it("비활성 사용자는 불가", () => {
+    expect(canCreatePerson(inactiveDept)).toBe(false);
+    expect(canAddPosition(inactiveDept)).toBe(false);
   });
 });

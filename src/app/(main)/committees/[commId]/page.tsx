@@ -2,9 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
-import { INST_TYPE_LABEL, OP_TYPE_LABEL } from "@/lib/enum-labels";
-import { getCommAccess, isAdmin } from "@/lib/permissions";
+import { prisma } from "@/lib/db";
+import {
+  APPOINT_KIND_LABEL,
+  APPOINT_TYPE_LABEL,
+  END_REASON_LABEL,
+  GENDER_LABEL,
+  INST_TYPE_LABEL,
+  OP_TYPE_LABEL,
+} from "@/lib/enum-labels";
+import { canEditPerson, getCommAccess, isAdmin, todayKST, type CurrentUser } from "@/lib/permissions";
+import { reappointCount, type AppointLite } from "@/lib/rules/appoint-rules";
 import { commStatus } from "@/lib/rules/comm-rules";
+import { dDay, formatDate } from "@/lib/rules/term";
+import { Roster, type RosterRow } from "./roster";
 import { loadCommFormOptions } from "../comm-options";
 import { CommStatusBadge } from "../comm-status-badge";
 import { CommDetailActions } from "./comm-detail-actions";
@@ -104,10 +115,121 @@ export default async function CommitteeDetailPage({ params }: PageProps<"/commit
         ))}
       </dl>
 
-      <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-        <h2 className="mb-1 font-medium text-foreground">위원 명부</h2>
-        위원 명부(재임/해촉, 소속직위, 위촉유형, 임기, 연임횟수)와 신규 위촉·해촉·연임은 5단계에서 추가됩니다.
+      <div className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">위원 명부</h2>
+        {!comm.comm_activ && (
+          <p className="text-sm text-muted-foreground">비활성 위원회입니다. 명부 조회는 되지만 신규 위촉은 할 수 없습니다.</p>
+        )}
+        <Roster
+          rows={await loadRosterRows(comm.comm_id, user, canEdit)}
+          canEdit={canEdit}
+          options={
+            canEdit
+              ? {
+                  commId: comm.comm_id,
+                  commActive: comm.comm_activ,
+                  termYr: comm.term_yr,
+                  reappointNum: comm.reappoint_num,
+                  memberCap: comm.member_cap,
+                  today: formatDate(todayKST()),
+                  apposOptions: (
+                    await prisma.tB_Ap_Position.findMany({ where: { appos_activ: true }, orderBy: { appos_id: "asc" } })
+                  ).map((a) => ({ value: a.appos_id, label: a.appos_name })),
+                }
+              : null
+          }
+        />
       </div>
     </section>
   );
+}
+
+/** 위원 명부 행 만들기. 인물 수정·소속직위 변경용 값은 편집 권한이 있을 때만 싣는다. */
+async function loadRosterRows(commId: string, user: CurrentUser, canEdit: boolean): Promise<RosterRow[]> {
+  const today = todayKST();
+  const appoints = await prisma.tB_Appoint.findMany({
+    where: { comm_id: commId },
+    include: {
+      appos: true,
+      pos: {
+        include: {
+          person: { include: { positions: { where: { pos_activ: true }, orderBy: { pos_id: "asc" } } } },
+        },
+      },
+    },
+    orderBy: [{ appoint_activ: "desc" }, { appos_id: "asc" }, { appoint_start: "asc" }],
+  });
+
+  const lites: AppointLite[] = appoints.map((a) => ({
+    appointId: a.appoint_id,
+    commId: a.comm_id,
+    personId: a.pos.person_id,
+    apposId: a.appos_id,
+    type: a.appoint_type,
+    kind: a.appoint_kind,
+    start: a.appoint_start,
+    end: a.appoint_end,
+    active: a.appoint_activ,
+  }));
+
+  // 인물 수정 권한: 그 인물의 위촉 건(모든 위원회)이 모두 본인 담당이어야 한다
+  const personIds = [...new Set(lites.map((l) => l.personId))];
+  const allOfPersons = canEdit
+    ? await prisma.tB_Appoint.findMany({
+        where: { pos: { person_id: { in: personIds } } },
+        select: { pos: { select: { person_id: true } }, comm: { select: { mng_user_id: true } } },
+      })
+    : [];
+  const commsByPerson = new Map<string, { mngUserId: string }[]>();
+  for (const a of allOfPersons) {
+    const list = commsByPerson.get(a.pos.person_id) ?? [];
+    list.push({ mngUserId: a.comm.mng_user_id });
+    commsByPerson.set(a.pos.person_id, list);
+  }
+
+  return appoints.map((a) => {
+    const person = a.pos.person;
+    const editable = canEdit && canEditPerson(user, commsByPerson.get(person.person_id) ?? []);
+    return {
+      appointId: a.appoint_id,
+      personId: person.person_id,
+      name: person.person_name,
+      genderLabel: GENDER_LABEL[person.person_gender],
+      birthYear: String(person.birth_date.getUTCFullYear()),
+      isPublic: person.is_public,
+      posId: a.pos_id,
+      posLabel: `${a.pos.org_name} ${a.pos.pos_name}`,
+      apposId: a.appos_id,
+      apposName: a.appos.appos_name,
+      type: a.appoint_type,
+      typeLabel: APPOINT_TYPE_LABEL[a.appoint_type],
+      kindLabel: APPOINT_KIND_LABEL[a.appoint_kind],
+      start: formatDate(a.appoint_start),
+      expireDue: a.expire_due ? formatDate(a.expire_due) : null,
+      end: a.appoint_end ? formatDate(a.appoint_end) : null,
+      endReasonLabel: a.end_reason ? END_REASON_LABEL[a.end_reason] : null,
+      active: a.appoint_activ,
+      activeValue: a.appoint_activ ? "Y" : "N",
+      dday: a.appoint_activ && a.expire_due ? dDay(a.expire_due, today) : null,
+      reappointCount: reappointCount(lites, commId, person.person_id),
+      person: canEdit
+        ? {
+            personId: person.person_id,
+            name: person.person_name,
+            genderLabel: GENDER_LABEL[person.person_gender],
+            birthDate: formatDate(person.birth_date),
+            isPublic: person.is_public,
+            positions: person.positions.map((p) => ({ posId: p.pos_id, label: `${p.org_name} ${p.pos_name}` })),
+          }
+        : undefined,
+      personEdit: editable
+        ? {
+            person_name: person.person_name,
+            person_gender: person.person_gender,
+            birth_date: formatDate(person.birth_date),
+            is_public: person.is_public,
+          }
+        : undefined,
+    };
+  });
 }

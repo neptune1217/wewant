@@ -109,3 +109,13 @@ export function canViewUser(actor: Actor, targetUserId: string): boolean {
   if (isAdmin(actor)) return true;
   return actor.active && actor.userId === targetUserId;
 }
+
+/** 인물 등록 — 활성 사용자 누구나 (중복 확인은 등록 화면이 먼저 묻는다) */
+export function canCreatePerson(actor: Actor): boolean {
+  return actor.active;
+}
+
+/** 인물의 소속직위 새 행 추가 — 활성 사용자 누구나 (기존 행 글자 수정은 canEditPos) */
+export function canAddPosition(actor: Actor): boolean {
+  return actor.active;
+}

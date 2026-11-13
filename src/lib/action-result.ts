@@ -8,7 +8,20 @@ import { PermissionError, requireAdmin, requireUser, type CurrentUser } from "@/
 
 export type ActionResult<T = undefined> =
   | { ok: true; message: string; data?: T }
-  | { ok: false; message: string; fieldErrors?: Record<string, string> };
+  | {
+      ok: false;
+      message: string;
+      fieldErrors?: Record<string, string>;
+      /** 확인하면 저장할 수 있는 경고 (정원 초과 등). 화면은 confirm_warnings=Y로 다시 보낸다 */
+      warnings?: string[];
+    };
+
+/** 경고 확인이 필요하다는 결과 */
+export const needsConfirm = (warnings: string[]): ActionResult<never> => ({
+  ok: false,
+  message: "아래 내용을 확인한 뒤 다시 저장하세요.",
+  warnings,
+});
 
 export const ok = <T = undefined>(message: string, data?: T): ActionResult<T> => ({
   ok: true,
