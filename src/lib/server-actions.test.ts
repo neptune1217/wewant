@@ -7,6 +7,7 @@
  *   · return userAction(    — 로그인 사용자. 이 경우 본문에서 대상별 권한 판정 함수를 반드시 부른다 (4단계 완료 기준)
  *   · await requireUser( / getCurrentUser( — 본인 정보만 다루는 동작
  * - 관리 화면(page.tsx)은 requireAdminPage()로 권한을 확인한다.
+ * - 사용자 상세(/users/[userId]) 화면은 canViewUser()로 확인하고 아니면 /forbidden으로 보낸다 (11단계).
  * - Route Handler(route.ts)의 내보낸 GET/POST 등은 첫 문장이 `const user = await requireUser(`다 (8단계, 엑셀 내보내기).
  * 예외: 로그인 화면(로그인 전이므로 확인할 사용자가 없다)
  */
@@ -120,5 +121,20 @@ describe("모든 Route Handler는 권한 관문으로 시작한다", () => {
         expect(fn.body.startsWith("const user = await requireUser(")).toBe(true);
       });
     }
+  }
+});
+
+describe("사용자 상세 화면은 canViewUser()로 본인·총괄만 통과시킨다", () => {
+  const USERS_DIR = path.join(APP_DIR, "(main)", "users");
+  const pages = walk(USERS_DIR).filter((f) => f.endsWith("page.tsx"));
+  it("검사할 화면이 있다", () => {
+    expect(pages.length).toBeGreaterThanOrEqual(1);
+  });
+  for (const file of pages) {
+    it(path.relative(process.cwd(), file), () => {
+      const src = readFileSync(file, "utf8");
+      expect(src).toMatch(/await requireUser\(\)/);
+      expect(src).toMatch(/if \(!canViewUser\(user, \w+\)\) redirect\("\/forbidden"\)/);
+    });
   }
 });

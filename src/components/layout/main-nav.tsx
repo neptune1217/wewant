@@ -8,8 +8,8 @@ const TABS = [
   { href: "/", label: "홈", match: [] },
   { href: "/committees", label: "위원회·위원", match: ["/committees", "/members"] },
   { href: "/stats", label: "통계", match: ["/stats"] },
-  // 관리 화면(/admin)도 사용자정보 탭 안에 있다
-  { href: "/me", label: "사용자정보", match: ["/me", "/admin"] },
+  // 관리 화면(/admin)·사용자 상세(/users)도 사용자정보 탭 안에 있다
+  { href: "/me", label: "사용자정보", match: ["/me", "/admin", "/users"] },
 ] as const;
 
 /** 로그인 후 상단의 4개 탭 */

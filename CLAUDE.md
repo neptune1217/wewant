@@ -49,6 +49,7 @@
 - [x] 8단계 필터와 엑셀 내보내기
 - [x] 9단계 홈 대시보드와 만료 알림
 - [x] 10단계 통계
+- [x] 11단계 사용자정보 탭
 
 ## 구현 메모 (1단계에서 확정)
 - Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
@@ -122,3 +123,7 @@
 - 통계 화면 `/stats?dept=부서코드`(없으면 전체). 집계 규칙 `src/lib/rules/stats-rules.ts`(만 나이·연령대·범위·집계, 테스트 있음), 조회 `src/lib/stats.ts`
 - 차트는 `stats-charts.tsx`(Recharts, 클라이언트). 각 차트 아래에 같은 숫자 표를 둔다(접근성·대조용). 애니메이션은 끔
 - Recharts는 React 19에서 `react-is`가 같은 주 버전이어야 하므로 `react-is@19.3.0`을 함께 고정 설치
+
+## 구현 메모 (11단계에서 확정)
+- 사용자 상세 `/users/[userId]`는 `requireUser()` 후 `if (!canViewUser(user, userId)) redirect("/forbidden")`(구조 검사 테스트가 확인). 데이터는 `src/lib/user-info.ts`
+- `/me`와 상세가 화면 조각 `src/app/(main)/users/user-info-sections.tsx`를 함께 쓴다. 사용자 관리 표의 이름은 상세로 링크

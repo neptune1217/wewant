@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { DataTable } from "@/components/data-table/data-table";
@@ -66,7 +67,9 @@ export function UsersTable({
       header: "이름",
       cell: ({ row }) => (
         <span className="inline-flex items-center gap-1.5">
-          {row.original.name}
+          <Link href={`/users/${row.original.id}`} className="font-medium underline-offset-4 hover:underline">
+            {row.original.name}
+          </Link>
           {row.original.isMe && <Badge variant="outline">나</Badge>}
         </span>
       ),
