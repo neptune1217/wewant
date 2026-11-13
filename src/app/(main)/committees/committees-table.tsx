@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { AccessStatusBadge } from "@/components/access-status-badge";
 import { DataTable } from "@/components/data-table/data-table";
 import type { DataColumn } from "@/components/data-table/data-table-features";
 import { ConfirmDialog } from "@/components/form/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { AccessStatusKind } from "@/lib/rules/access-rules";
+import { cn } from "@/lib/utils";
 import { approveComm, setCommActive } from "./actions";
 import { CommFormDialog, type CommEditPayload, type CommFormOptions, type Option } from "./comm-form";
 import { CommStatusBadge } from "./comm-status-badge";
@@ -28,6 +31,9 @@ export type CommRow = {
   status: "ACTIVE" | "PENDING" | "INACTIVE";
   active: boolean;
   canView: boolean;
+  /** 본인의 열람 요청 상태 (담당자·총괄이 아닌 위원회만) */
+  accessKind: AccessStatusKind;
+  accessUntil: string | null;
   canEdit: boolean;
   edit?: CommEditPayload;
   currentLabels?: { dept?: string; manager?: string };
@@ -62,14 +68,15 @@ export function CommitteesTable({
         const r = row.original;
         return (
           <span className="inline-flex items-center gap-1.5">
-            {r.canView ? (
-              <Link href={`/committees/${r.id}`} className="font-medium underline-offset-4 hover:underline">
-                {r.name}
-              </Link>
-            ) : (
-              r.name
-            )}
+            {/* 열람 권한이 없어도 상세 화면에서 열람 요청을 할 수 있도록 항상 링크 */}
+            <Link
+              href={`/committees/${r.id}`}
+              className={cn("underline-offset-4 hover:underline", r.canView && "font-medium")}
+            >
+              {r.name}
+            </Link>
             {r.mine === "Y" && <Badge variant="outline">내 담당</Badge>}
+            {!r.canEdit && <AccessStatusBadge kind={r.accessKind} viewUntil={r.accessUntil} />}
           </span>
         );
       },

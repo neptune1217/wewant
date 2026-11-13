@@ -4,7 +4,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { INST_TYPE_LABEL, OP_TYPE_LABEL } from "@/lib/enum-labels";
 import { canEditComm, canViewCommDetail, isAdmin, requireUser, todayKST } from "@/lib/permissions";
+import { accessStatus } from "@/lib/rules/access-rules";
 import { commStatus } from "@/lib/rules/comm-rules";
+import { formatDate } from "@/lib/rules/term";
 import type { CommEditPayload } from "./comm-form";
 import { deptLabel, loadCommFormOptions } from "./comm-options";
 import { CommitteesTable, type CommRow } from "./committees-table";
@@ -30,7 +32,7 @@ export default async function CommitteesPage() {
     }),
     prisma.tB_AccessReq.findMany({
       where: { req_user_id: user.userId },
-      select: { comm_id: true, req_user_id: true, req_status: true, view_until: true },
+      select: { req_id: true, comm_id: true, req_user_id: true, req_status: true, req_at: true, view_until: true },
     }),
     loadCommFormOptions(user),
   ]);
@@ -41,6 +43,13 @@ export default async function CommitteesPage() {
       .filter((g) => g.comm_id === c.comm_id)
       .map((g) => ({ reqUserId: g.req_user_id, status: g.req_status, viewUntil: g.view_until }));
     const canEdit = canEditComm(user, ref);
+    const mine = myGrants.filter((g) => g.comm_id === c.comm_id);
+    const access = canEdit
+      ? null
+      : accessStatus(
+          mine.map((g) => ({ reqId: g.req_id, status: g.req_status, reqAt: g.req_at, viewUntil: g.view_until })),
+          today,
+        );
     const status = commStatus({ active: c.comm_activ, approved: c.comm_approved });
     const edit: CommEditPayload | undefined = canEdit
       ? {
@@ -72,6 +81,8 @@ export default async function CommitteesPage() {
       status,
       active: c.comm_activ,
       canView: canViewCommDetail(user, ref, grants, today),
+      accessKind: access?.kind ?? "NONE",
+      accessUntil: access?.viewUntil ? formatDate(access.viewUntil) : null,
       canEdit,
       edit,
       currentLabels: canEdit ? { dept: c.dept.dept_name, manager: c.mng_user.user_name } : undefined,

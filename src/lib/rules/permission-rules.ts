@@ -74,6 +74,19 @@ export function canViewCommDetail(
   );
 }
 
+/**
+ * 열람 요청 — 담당자·총괄은 이미 열람할 수 있으므로 요청 대상이 아니다.
+ * (대기 중·열람 중 중복 요청 여부는 access-rules.ts의 requestBlockReason)
+ */
+export function canRequestAccess(actor: Actor, comm: CommRef): boolean {
+  return actor.active && !canEditComm(actor, comm);
+}
+
+/** 열람 요청 승인·거절 — 위원회의 현재 담당자와 총괄 (담당자가 바뀌면 새 담당자) */
+export function canDecideAccess(actor: Actor, comm: CommRef): boolean {
+  return canEditComm(actor, comm);
+}
+
 /** 엑셀 내보내기 — 열람 권한이 있는 위원회만 */
 export function canExportComm(
   actor: Actor,

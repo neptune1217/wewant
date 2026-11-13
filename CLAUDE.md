@@ -45,6 +45,7 @@
 - [x] 4단계 위원회 관리
 - [x] 5단계 인물·소속직위·위촉 (핵심)
 - [x] 6단계 중복위촉 조회와 경고
+- [x] 7단계 열람 요청·승인
 
 ## 구현 메모 (1단계에서 확정)
 - Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
@@ -94,3 +95,10 @@
 - 신규 위촉 경고는 `createAppoint`의 경고 목록(정원 초과와 함께)에 들어가고, 확인 후 저장되면 이력의 `warnings`에 남는다
 - 조회 화면은 `/committees/duplicates` (GET 검색, 서버 동작 없음)
 - shadcn 컴포넌트는 `cn`을 `"cn"` 패키지에서 가져온다(기존 파일과 같게 유지)
+
+## 구현 메모 (7단계에서 확정)
+- 열람 규칙은 `src/lib/rules/access-rules.ts`(viewUntilDate, accessStatus, requestBlockReason), 요청·처리 권한은 `permission-rules.ts`의 `canRequestAccess` / `canDecideAccess`
+- 서버 동작은 `src/app/(main)/committees/[commId]/access-actions.ts`(requestAccess, decideAccess). 처리는 대기 상태일 때만 `updateMany`로 바꿔 중복 처리를 막는다
+- `getCommAccess()`가 본인 요청 상태(`myAccess`)를 함께 돌려준다. 열람 중(편집 불가)이면 상세 화면에 읽기 전용 안내
+- 위원회 목록의 위원회명은 항상 상세 링크(권한이 없으면 상세 화면에서 열람 요청)
+- 홈의 열람 요청 처리함은 `src/app/(main)/access-inbox.tsx`. 9단계 대시보드는 이 화면에 덧붙인다

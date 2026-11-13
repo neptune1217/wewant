@@ -12,6 +12,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { accessStatus } from "@/lib/rules/access-rules";
 import {
   canEditComm,
   canViewCommDetail,
@@ -112,7 +113,7 @@ export function todayKST(): Date {
 
 /**
  * 위원회 하나에 대한 현재 사용자의 권한 (상세 화면용).
- * 위원회가 없으면 null. 열람 승인 건(TB_AccessReq)은 7단계부터 쌓인다.
+ * 위원회가 없으면 null. 열람 승인 건(TB_AccessReq)으로 타 담당자의 읽기 전용 열람을 판정한다.
  */
 export async function getCommAccess(commId: string) {
   const user = await requireUser();
@@ -130,19 +131,25 @@ export async function getCommAccess(commId: string) {
   const ref = { mngUserId: comm.mng_user_id };
   const reqs = await prisma.tB_AccessReq.findMany({
     where: { comm_id: commId, req_user_id: user.userId },
-    select: { req_user_id: true, req_status: true, view_until: true },
+    select: { req_id: true, req_user_id: true, req_status: true, req_at: true, view_until: true },
   });
   const grants: AccessGrant[] = reqs.map((r) => ({
     reqUserId: r.req_user_id,
     status: r.req_status,
     viewUntil: r.view_until,
   }));
+  const today = todayKST();
 
   return {
     user,
     comm,
-    canView: canViewCommDetail(user, ref, grants, todayKST()),
+    canView: canViewCommDetail(user, ref, grants, today),
     canEdit: canEditComm(user, ref),
+    /** 본인의 열람 요청 상태 (담당자·총괄이 아닐 때 화면 안내용) */
+    myAccess: accessStatus(
+      reqs.map((r) => ({ reqId: r.req_id, status: r.req_status, reqAt: r.req_at, viewUntil: r.view_until })),
+      today,
+    ),
   };
 }
 

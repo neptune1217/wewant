@@ -3,12 +3,14 @@ import {
   AUTH_ADMIN,
   AUTH_DEPT,
   canAddPosition,
+  canDecideAccess,
   canCreatePerson,
   canEditComm,
   canEditPerson,
   canEditPos,
   canExportComm,
   canManageMaster,
+  canRequestAccess,
   canViewCommDetail,
   canViewUser,
   isAdmin,
@@ -170,5 +172,31 @@ describe("인물 등록·소속직위 추가 (5단계) — 활성 사용자 누�
   it("비활성 사용자는 불가", () => {
     expect(canCreatePerson(inactiveDept)).toBe(false);
     expect(canAddPosition(inactiveDept)).toBe(false);
+  });
+});
+
+describe("열람 요청·처리", () => {
+  it("담당자도 총괄도 아닌 부서 계정만 요청할 수 있다", () => {
+    expect(canRequestAccess(deptB, commA)).toBe(true);
+  });
+  it("담당자 본인과 총괄은 요청할 필요가 없다(불가)", () => {
+    expect(canRequestAccess(deptA, commA)).toBe(false);
+    expect(canRequestAccess(admin, commA)).toBe(false);
+  });
+  it("비활성 사용자는 요청 불가", () => {
+    expect(canRequestAccess({ ...deptB, active: false }, commA)).toBe(false);
+  });
+  it("승인·거절은 현재 담당자와 총괄만", () => {
+    expect(canDecideAccess(deptA, commA)).toBe(true);
+    expect(canDecideAccess(admin, commA)).toBe(true);
+    expect(canDecideAccess(deptB, commA)).toBe(false);
+  });
+  it("담당자가 바뀌면 새 담당자가 처리한다", () => {
+    const handedOver = { mngUserId: "u00003" };
+    expect(canDecideAccess(deptA, handedOver)).toBe(false);
+    expect(canDecideAccess(deptB, handedOver)).toBe(true);
+  });
+  it("비활성 사용자는 처리 불가", () => {
+    expect(canDecideAccess(inactiveDept, commA)).toBe(false);
   });
 });

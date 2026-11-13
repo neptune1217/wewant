@@ -12,13 +12,14 @@ import {
   INST_TYPE_LABEL,
   OP_TYPE_LABEL,
 } from "@/lib/enum-labels";
-import { canEditPerson, getCommAccess, isAdmin, todayKST, type CurrentUser } from "@/lib/permissions";
+import { canEditPerson, canRequestAccess, getCommAccess, isAdmin, todayKST, type CurrentUser } from "@/lib/permissions";
 import { reappointCount, type AppointLite } from "@/lib/rules/appoint-rules";
 import { commStatus } from "@/lib/rules/comm-rules";
 import { dDay, formatDate } from "@/lib/rules/term";
 import { Roster, type RosterRow } from "./roster";
 import { loadCommFormOptions } from "../comm-options";
 import { CommStatusBadge } from "../comm-status-badge";
+import { AccessRequestPanel } from "./access-request-panel";
 import { CommDetailActions } from "./comm-detail-actions";
 
 export const metadata: Metadata = { title: "위원회 상세 | 춘천시 위원회·위원 통합관리" };
@@ -27,7 +28,8 @@ export default async function CommitteeDetailPage({ params }: PageProps<"/commit
   const { commId } = await params;
   const access = await getCommAccess(commId);
   if (!access) notFound();
-  const { user, comm, canView, canEdit } = access;
+  const { user, comm, canView, canEdit, myAccess } = access;
+  const myViewUntil = myAccess.viewUntil ? formatDate(myAccess.viewUntil) : null;
 
   const back = (
     <Link href="/committees" className={buttonVariants({ variant: "ghost", size: "sm" })}>
@@ -44,7 +46,13 @@ export default async function CommitteeDetailPage({ params }: PageProps<"/commit
         <p className="text-muted-foreground">
           이 위원회의 상세 정보와 위원 명부는 담당자({comm.mng_user.user_name})와 총괄담당자만 볼 수 있습니다.
         </p>
-        <p className="text-sm text-muted-foreground">열람 요청 기능은 7단계에서 추가됩니다.</p>
+        <AccessRequestPanel
+          commId={comm.comm_id}
+          commName={comm.comm_name}
+          kind={myAccess.kind}
+          viewUntil={myViewUntil}
+          canRequest={canRequestAccess(user, { mngUserId: comm.mng_user_id })}
+        />
       </section>
     );
   }
@@ -106,6 +114,13 @@ export default async function CommitteeDetailPage({ params }: PageProps<"/commit
           />
         )}
       </div>
+
+      {!canEdit && (
+        <p className="rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-100">
+          읽기 전용 열람 중입니다{myViewUntil ? ` — ${myViewUntil}까지` : ""}. 수정·위촉은 담당자({comm.mng_user.user_name})와
+          총괄담당자만 할 수 있습니다.
+        </p>
+      )}
 
       <dl className="grid grid-cols-1 gap-x-6 gap-y-2 rounded-lg border p-4 text-sm sm:grid-cols-[9rem_1fr]">
         {info.map(([k, v]) => (
