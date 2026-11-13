@@ -3,7 +3,7 @@
 /**
  * 위촉(TB_Appoint) 업무 흐름 — 신규 위촉, 해촉, 연임, 위원회 내 직위 변경, 소속직위 변경
  * - 권한: 그 위원회의 담당자 본인과 총괄만 (canEditComm)
- * - 정원 초과·연임 가능횟수 초과는 경고만 하고, 확인하면 저장한다
+ * - 정원 초과·연임 가능횟수 초과·중복위촉(위촉직 4개 이상)은 경고만 하고, 확인하면 저장한다
  * - 소속직위 변경은 TB_Pos 행을 고치지 않고 위촉 건의 pos_id만 바꾼다 (데이터모델 "직위 변경 규칙")
  */
 import { revalidatePath } from "next/cache";
@@ -11,6 +11,7 @@ import { AppointKind, AppointType, AuditAction, EndReason } from "@/generated/pr
 import { fail, fromZodError, needsConfirm, ok, userAction, type ActionResult } from "@/lib/action-result";
 import { writeAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { currentAppointedCount } from "@/lib/duplicates";
 import { assertPermission, canEditComm } from "@/lib/permissions";
 import {
   capacityWarning,
@@ -20,6 +21,7 @@ import {
   shouldDeactivatePos,
   type AppointLite,
 } from "@/lib/rules/appoint-rules";
+import { newAppointDupWarning } from "@/lib/rules/duplicate-rules";
 import { nextTermDates, positionChangeDates, resolveExpireDue } from "@/lib/rules/term";
 import {
   ApposChangeSchema,
@@ -100,8 +102,14 @@ export async function createAppoint(_prev: unknown, formData: FormData): Promise
     });
     if ("error" in expire) return fail(expire.error, { expire_due: expire.error });
 
-    const currentCount = await prisma.tB_Appoint.count({ where: { comm_id: comm.comm_id, appoint_activ: true } });
-    const warnings = [capacityWarning(currentCount, comm.member_cap)].filter((w): w is string => !!w);
+    const [currentCount, dupCount] = await Promise.all([
+      prisma.tB_Appoint.count({ where: { comm_id: comm.comm_id, appoint_activ: true } }),
+      currentAppointedCount(pos.person_id),
+    ]);
+    const warnings = [
+      capacityWarning(currentCount, comm.member_cap),
+      newAppointDupWarning(dupCount, input.appoint_type),
+    ].filter((w): w is string => !!w);
     if (warnings.length && !input.confirm_warnings) return needsConfirm(warnings);
 
     const created = await prisma.$transaction(async (tx) => {

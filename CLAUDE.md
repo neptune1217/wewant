@@ -44,7 +44,7 @@
 - [x] 3단계 기준정보 관리 (총괄 전용)
 - [x] 4단계 위원회 관리
 - [x] 5단계 인물·소속직위·위촉 (핵심)
-- [ ] 6단계 중복위촉 조회와 경고
+- [x] 6단계 중복위촉 조회와 경고
 
 ## 구현 메모 (1단계에서 확정)
 - Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
@@ -86,3 +86,11 @@
 - 위촉·인물 서버 동작: `src/app/(main)/committees/[commId]/appoint-actions.ts`, `person-actions.ts`. 검색류는 `const user = await requireUser()`로 시작
 - 명부 행에는 편집 권한이 있을 때만 인물·소속직위 편집용 값을 싣는다
 - 데이터가 있는 테이블에 필수 칸·고유 제약을 추가하면 `migrate dev`가 확인 질문으로 멈춘다 → `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`로 SQL을 만들어 마이그레이션 폴더에 넣고 `migrate dev`로 적용
+
+## 구현 메모 (6단계에서 확정)
+- 중복위촉 규칙은 `src/lib/rules/duplicate-rules.ts`(순수 함수, 테스트 있음), DB 조회는 `src/lib/duplicates.ts`(`getDupSummaries`, `getActiveAppointRows`, `currentAppointedCount`)
+- 위촉직 건수 = 재임 중 위촉직이 있는 집계 대상 위원회(활성+승인) 수. 당연직·해촉·승인 대기·비활성 제외, 인물은 `person_id`로 구분
+- 경고 아이콘은 `src/components/dup-warning-icon.tsx`. 명부·신규 위촉 인물 검색·중복위촉 조회 화면에서 쓴다. 아이콘 정보에는 위원회명만 담는다
+- 신규 위촉 경고는 `createAppoint`의 경고 목록(정원 초과와 함께)에 들어가고, 확인 후 저장되면 이력의 `warnings`에 남는다
+- 조회 화면은 `/committees/duplicates` (GET 검색, 서버 동작 없음)
+- shadcn 컴포넌트는 `cn`을 `"cn"` 패키지에서 가져온다(기존 파일과 같게 유지)

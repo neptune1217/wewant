@@ -10,6 +10,7 @@ import { AuditAction } from "@/generated/prisma/enums";
 import { fail, fromZodError, ok, userAction, type ActionResult } from "@/lib/action-result";
 import { writeAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { getDupSummaries, type DupSummary } from "@/lib/duplicates";
 import { GENDER_LABEL } from "@/lib/enum-labels";
 import { assertPermission, canAddPosition, canCreatePerson, canEditPerson, requireUser } from "@/lib/permissions";
 import { formatDate } from "@/lib/rules/term";
@@ -24,6 +25,8 @@ export type PersonHit = {
   birthDate: string;
   isPublic: boolean;
   positions: { posId: string; label: string }[];
+  /** 중복위촉 요약 (위촉직 4개 이상이면 경고 아이콘) */
+  dup: DupSummary;
 };
 
 async function toHits(where: { person_name?: { contains: string }; person_id?: { in: string[] } }) {
@@ -33,6 +36,7 @@ async function toHits(where: { person_name?: { contains: string }; person_id?: {
     orderBy: [{ person_name: "asc" }, { birth_date: "asc" }],
     take: 20,
   });
+  const dup = await getDupSummaries(persons.map((p) => p.person_id));
   return persons.map<PersonHit>((p) => ({
     personId: p.person_id,
     name: p.person_name,
@@ -40,6 +44,7 @@ async function toHits(where: { person_name?: { contains: string }; person_id?: {
     birthDate: formatDate(p.birth_date),
     isPublic: p.is_public,
     positions: p.positions.map((s) => ({ posId: s.pos_id, label: `${s.org_name} ${s.pos_name}` })),
+    dup: dup.get(p.person_id)!,
   }));
 }
 

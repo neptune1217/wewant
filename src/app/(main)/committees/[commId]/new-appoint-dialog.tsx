@@ -7,6 +7,7 @@
  */
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { DupWarningIcon } from "@/components/dup-warning-icon";
 import { WarningBox, type FormActionResult } from "@/components/form/form-dialog";
 import { FormField, SelectField } from "@/components/form/form-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -158,8 +159,10 @@ function SearchStep({ onPick, onNew }: { onPick: (p: PersonHit) => void; onNew: 
               {hits.map((h) => (
                 <li key={h.personId} className="flex items-center justify-between gap-3 p-3 text-sm">
                   <div>
-                    <div className="font-medium">
+                    <div className="flex flex-wrap items-center gap-1 font-medium">
                       {h.name} <span className="text-muted-foreground">({h.genderLabel}, {h.birthDate})</span>
+                      <DupWarningIcon info={h.dup} />
+                      <span className="text-xs font-normal text-muted-foreground">현재 위촉직 {h.dup.count}개</span>
                     </div>
                     <div className="text-muted-foreground">
                       {h.positions.map((p) => p.label).join(" · ") || "등록된 소속직위 없음"}
@@ -231,7 +234,7 @@ function RegisterStep({
             {same.map((s) => (
               <li key={s.personId} className="flex items-center justify-between gap-2">
                 <span>
-                  {s.name} ({s.genderLabel}, {s.birthDate}) — {s.positions.map((p) => p.label).join(" · ") || "소속직위 없음"}
+                  <DupWarningIcon info={s.dup} /> {s.name} ({s.genderLabel}, {s.birthDate}) — {s.positions.map((p) => p.label).join(" · ") || "소속직위 없음"}
                 </span>
                 <Button type="button" size="sm" onClick={() => onPickExisting(s)}>
                   이 인물 사용

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
+import { getDupSummaries } from "@/lib/duplicates";
 import {
   APPOINT_KIND_LABEL,
   APPOINT_TYPE_LABEL,
@@ -174,6 +175,8 @@ async function loadRosterRows(commId: string, user: CurrentUser, canEdit: boolea
 
   // 인물 수정 권한: 그 인물의 위촉 건(모든 위원회)이 모두 본인 담당이어야 한다
   const personIds = [...new Set(lites.map((l) => l.personId))];
+  // 중복위촉 경고 아이콘 (위촉직 4개 이상) — 위원회명만 담는다
+  const dup = await getDupSummaries(personIds);
   const allOfPersons = canEdit
     ? await prisma.tB_Appoint.findMany({
         where: { pos: { person_id: { in: personIds } } },
@@ -212,6 +215,7 @@ async function loadRosterRows(commId: string, user: CurrentUser, canEdit: boolea
       activeValue: a.appoint_activ ? "Y" : "N",
       dday: a.appoint_activ && a.expire_due ? dDay(a.expire_due, today) : null,
       reappointCount: reappointCount(lites, commId, person.person_id, a.appoint_id),
+      dup: dup.get(person.person_id),
       person: canEdit
         ? {
             personId: person.person_id,
@@ -220,6 +224,7 @@ async function loadRosterRows(commId: string, user: CurrentUser, canEdit: boolea
             birthDate: formatDate(person.birth_date),
             isPublic: person.is_public,
             positions: person.positions.map((p) => ({ posId: p.pos_id, label: `${p.org_name} ${p.pos_name}` })),
+            dup: dup.get(person.person_id)!,
           }
         : undefined,
       personEdit: editable

@@ -2,6 +2,7 @@
 
 /** 위원 명부 — 재임/해촉, 소속직위, 위원회 내 직위, 위촉유형·구분, 위촉일, 만료 예정일, D-day, 연임횟수 */
 import { useState } from "react";
+import { DupWarningIcon, type DupWarningInfo } from "@/components/dup-warning-icon";
 import { DataTable } from "@/components/data-table/data-table";
 import type { DataColumn } from "@/components/data-table/data-table-features";
 import { FormDialog } from "@/components/form/form-dialog";
@@ -52,6 +53,8 @@ export type RosterRow = {
   activeValue: "Y" | "N";
   dday: number | null;
   reappointCount: number;
+  /** 중복위촉 요약 (위촉직 4개 이상이면 경고 아이콘) */
+  dup?: DupWarningInfo;
   /** 편집 권한이 있을 때만 채운다 */
   person?: PersonHit;
   personEdit?: PersonValues;
@@ -95,7 +98,10 @@ export function Roster({
       header: "성명",
       cell: ({ row }) => (
         <div>
-          <div className="font-medium">{row.original.name}</div>
+          <div className="flex items-center gap-1 font-medium">
+            {row.original.name}
+            <DupWarningIcon info={row.original.dup} />
+          </div>
           <div className="text-xs text-muted-foreground">
             {row.original.genderLabel} · {row.original.birthYear}년생{row.original.isPublic ? " · 공무원" : ""}
           </div>
