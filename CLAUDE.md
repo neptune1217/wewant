@@ -12,7 +12,7 @@
 - PostgreSQL (Docker Compose)
 - Prisma ORM **7** — `prisma@7`, `@prisma/client@7`로 설치. `@latest`는 8 RC가 설치되므로 쓰지 않는다
 - Better Auth (아이디+비밀번호, DB 세션). Auth.js/NextAuth는 쓰지 않는다
-- Tailwind CSS + shadcn/ui, TanStack Table, Recharts, ExcelJS, Zod
+- Tailwind CSS + shadcn/ui, TanStack Table, Recharts(3.10.1, react-is 19.3.0과 함께), ExcelJS, Zod
 - Vitest(규칙 계산), Playwright(권한 시나리오)
 
 라이브러리 설정 방법이 확실하지 않으면 추측하지 말고 해당 버전의 공식 문서를 확인한다.
@@ -48,6 +48,7 @@
 - [x] 7단계 열람 요청·승인
 - [x] 8단계 필터와 엑셀 내보내기
 - [x] 9단계 홈 대시보드와 만료 알림
+- [x] 10단계 통계
 
 ## 구현 메모 (1단계에서 확정)
 - Prisma 생성 코드는 `src/generated/prisma`(커밋 안 함). 가져오기: `@/generated/prisma/client`, 선택값은 `@/generated/prisma/enums`
@@ -74,6 +75,7 @@
 - 관리자 서버 동작은 본문이 `return adminAction(...)`으로 시작해야 한다(`src/lib/admin-actions.test.ts`가 검사). 관리자 화면은 `requireAdminPage()`
 - 변경은 트랜잭션 안에서 `writeAudit()`로 이력을 남긴다. 비활성화는 action `삭제`, 다시 활성화는 `수정`으로 기록
 - 스키마를 바꾼 뒤에는 개발 서버를 다시 시작한다(실행 중인 서버가 예전 Prisma 연결을 붙잡고 있음)
+- 패키지 설치 후나 공통 부품(DataTable 등)을 바꾼 뒤 화면에 "Hydration failed"가 나오면 개발 서버가 예전 컴파일을 쥐고 있는 것이다 → 개발 서버를 다시 시작한다(10단계에서 겪음)
 - 로그인 사용자용 서버 동작은 `return userAction(...)`으로 시작하고, 본문에서 대상별 판정(`checkCommUpdate`, `assertPermission` 등)을 반드시 부른다. `src/lib/server-actions.test.ts`가 src/app의 모든 서버 동작을 검사한다(예외: 로그인)
 - 권한이 없는 대상의 상세 값은 화면(클라이언트)으로 보내지 않는다. 목록 행에는 기본 정보만, 수정용 값은 편집 권한이 있을 때만 싣는다
 
@@ -115,3 +117,8 @@
 - 홈 = 임기만료 알림(`expiry-alerts.tsx`) + 열람 요청 처리함(`access-inbox.tsx`) + 위원회 구성 요약(`home-summary.tsx`). 데이터는 `src/lib/dashboard.ts`의 `loadDashboard(user)`
 - 알림 규칙 `expiryAlerts`(0~60일 + 만료일 지남, 7·30일 강조), 비율 `memberRatios`는 `src/lib/rules/dashboard-rules.ts`(테스트 있음)
 - 홈 막대 그림은 CSS로 그린다. Recharts는 10단계 통계에서 설치
+
+## 구현 메모 (10단계에서 확정)
+- 통계 화면 `/stats?dept=부서코드`(없으면 전체). 집계 규칙 `src/lib/rules/stats-rules.ts`(만 나이·연령대·범위·집계, 테스트 있음), 조회 `src/lib/stats.ts`
+- 차트는 `stats-charts.tsx`(Recharts, 클라이언트). 각 차트 아래에 같은 숫자 표를 둔다(접근성·대조용). 애니메이션은 끔
+- Recharts는 React 19에서 `react-is`가 같은 주 버전이어야 하므로 `react-is@19.3.0`을 함께 고정 설치
